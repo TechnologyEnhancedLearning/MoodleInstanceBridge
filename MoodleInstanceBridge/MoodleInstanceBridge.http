@@ -1,0 +1,6 @@
+@MoodleInstanceBridge_HostAddress = http://localhost:5262
+
+GET {{MoodleInstanceBridge_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
