@@ -3,12 +3,18 @@ using Microsoft.AspNetCore.Mvc;
 namespace MoodleInstanceBridge.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+
+    // API Version 1
+    [ApiVersion("1.0")]
+
+    // Updated route to support versioning
+    [Route("api/v{version:apiVersion}/[controller]")]
     public class WeatherForecastController : ControllerBase
     {
         private static readonly string[] Summaries = new[]
         {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm",
+            "Balmy", "Hot", "Sweltering", "Scorching"
         };
 
         private readonly ILogger<WeatherForecastController> _logger;
