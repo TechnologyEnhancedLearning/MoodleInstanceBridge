@@ -34,7 +34,7 @@ jobs:
       run: dotnet publish --configuration Release --output publish_output
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: app
         path: publish_output
@@ -47,7 +47,7 @@ jobs:
 
     steps:
     - name: Download artifact
-      uses: actions/download-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: app
 
