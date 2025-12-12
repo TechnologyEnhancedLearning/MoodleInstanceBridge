@@ -8,7 +8,6 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: UKS-ELFH-MoodleBridge-DEV
-  AZURE_WEBAPP_PACKAGE_PATH: '.' 
   DOTNET_VERSION: '8.0.x'
 
 jobs:
@@ -31,13 +30,18 @@ jobs:
       run: dotnet build --configuration Release --no-restore
 
     - name: Publish
-      run: dotnet publish --configuration Release --output publish_output
+      run: dotnet publish --configuration Release -o publish_output
 
-    - name: Upload artifact
+    - name: Create ZIP package
+      run: |
+        cd publish_output
+        zip -r ../app.zip .
+
+    - name: Upload Artifact (ZIP)
       uses: actions/upload-artifact@v4
       with:
         name: app
-        path: publish_output
+        path: app.zip
 
   deploy:
     needs: build
@@ -46,18 +50,19 @@ jobs:
       name: production
 
     steps:
-    - name: Download artifact
+    - name: Download Artifact (ZIP)
       uses: actions/download-artifact@v4
       with:
         name: app
+        path: .
 
     - name: Login to Azure
       uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Deploy to Azure Web App
+    - name: Deploy to Azure Web App (ZIP Deploy)
       uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        package: app
+        package: app.zip
