@@ -6,7 +6,7 @@ namespace MoodleInstanceBridge.Controllers
 
     // API Version 1
     [ApiVersion("1.0")]
-    [Route("api/v{version:apiVersion}/health")]
+    [Route("api/v{version:apiVersion}/healthTestV1")]
     public class HealthController : ControllerBase
     {
         [HttpGet]
