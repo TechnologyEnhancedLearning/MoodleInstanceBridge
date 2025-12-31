@@ -2,14 +2,30 @@ using Microsoft.AspNetCore.Diagnostics;
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using Microsoft.ApplicationInsights.Extensibility;
+using MoodleInstanceBridge.Telemetry;
+using MoodleInstanceBridge.Middleware;
+using MoodleInstanceBridge.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add Application Insights
+builder.Services.AddApplicationInsightsTelemetry(options =>
+{
+    options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+    options.EnableDependencyTrackingTelemetryModule = true;
+    options.EnablePerformanceCounterCollectionModule = true;
+});
+
+// Register Telemetry Initializer
+builder.Services.AddSingleton<ITelemetryInitializer, InstanceTelemetryInitializer>();
 
 // Add services
 builder.Services.AddControllers();
 
-//  Add Health Checks
-builder.Services.AddHealthChecks();
+// Add Health Checks
+builder.Services.AddHealthChecks()
+    .AddCheck<InstanceHealthCheck>("instance_health");
 
 // API Versioning
 builder.Services.AddApiVersioning(options =>
@@ -62,7 +78,12 @@ app.UseExceptionHandler(errorApp =>
 // Version provider
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 
-// Middleware
+// Middleware - Error handling should be first
+app.UseErrorHandling();
+
+// Request timing middleware
+app.UseRequestTiming();
+
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
@@ -78,7 +99,7 @@ app.UseSwaggerUI(options =>
 app.UseHttpsRedirection();
 app.UseAuthorization();
 
-//  Map Health Check endpoint
+// Map Health Check endpoint
 app.MapHealthChecks("/health");
 
 app.MapControllers();
