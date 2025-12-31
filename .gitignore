@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/MoodleInstanceBridge/appsettings.Development.json
+/MoodleInstanceBridge/Properties/ServiceDependencies/UKS-ELFH-MoodleBridge-DEV - Web Deploy
+/MoodleInstanceBridge/Properties/serviceDependencies.json
+/MoodleInstanceBridge/Properties/serviceDependencies.UKS-ELFH-MoodleBridge-DEV - Web Deploy.json
