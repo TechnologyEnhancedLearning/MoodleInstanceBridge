@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Diagnostics;
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.ApplicationInsights.Extensibility;
@@ -58,6 +60,32 @@ builder.Services.AddSwaggerGen();
 builder.Services.ConfigureOptions<SwaggerConfig>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exceptionFeature =
+            context.Features.Get<IExceptionHandlerPathFeature>();
+
+        var logger = context.RequestServices
+            .GetRequiredService<ILogger<Program>>();
+
+        logger.LogError(
+            exceptionFeature?.Error,
+            "Unhandled exception at {Path}",
+            context.Request.Path);
+
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        context.Response.ContentType = "application/json";
+
+        await context.Response.WriteAsJsonAsync(new
+        {
+            error = "Internal server error"
+        });
+    });
+});
+
 
 // Version provider
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
