@@ -1,13 +1,41 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using Microsoft.ApplicationInsights.Extensibility;
+using MoodleInstanceBridge.Telemetry;
+using MoodleInstanceBridge.Middleware;
+using MoodleInstanceBridge.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
-builder.Services.AddControllers();
+// Add Application Insights
+builder.Services.AddApplicationInsightsTelemetry(options =>
+{
+    options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+    options.EnableDependencyTrackingTelemetryModule = true;
+    options.EnablePerformanceCounterCollectionModule = true;
+});
 
-//  Add Health Checks
-builder.Services.AddHealthChecks();
+// Register Telemetry Initializer
+builder.Services.AddSingleton<ITelemetryInitializer, InstanceTelemetryInitializer>();
+
+// Register services
+builder.Services.AddScoped<MoodleInstanceBridge.Services.AggregationService>();
+
+// Add services
+builder.Services.AddControllers(options =>
+{
+    // Add validation filter globally
+    options.Filters.Add<MoodleInstanceBridge.Filters.ValidationExceptionFilter>();
+})
+.ConfigureApiBehaviorOptions(options =>
+{
+    // Suppress default model validation error response to use our custom one
+    options.SuppressModelStateInvalidFilter = true;
+});
+
+// Add Health Checks
+builder.Services.AddHealthChecks()
+    .AddCheck<InstanceHealthCheck>("instance_health");
 
 // API Versioning
 builder.Services.AddApiVersioning(options =>
@@ -34,7 +62,12 @@ var app = builder.Build();
 // Version provider
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 
-// Middleware
+// Middleware - Error handling should be first
+app.UseErrorHandling();
+
+// Request timing middleware
+app.UseRequestTiming();
+
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
@@ -50,7 +83,7 @@ app.UseSwaggerUI(options =>
 app.UseHttpsRedirection();
 app.UseAuthorization();
 
-//  Map Health Check endpoint
+// Map Health Check endpoint
 app.MapHealthChecks("/health");
 
 app.MapControllers();
