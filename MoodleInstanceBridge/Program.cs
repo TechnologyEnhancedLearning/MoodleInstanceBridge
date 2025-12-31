@@ -20,8 +20,20 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
 // Register Telemetry Initializer
 builder.Services.AddSingleton<ITelemetryInitializer, InstanceTelemetryInitializer>();
 
+// Register services
+builder.Services.AddScoped<MoodleInstanceBridge.Services.AggregationService>();
+
 // Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    // Add validation filter globally
+    options.Filters.Add<MoodleInstanceBridge.Filters.ValidationExceptionFilter>();
+})
+.ConfigureApiBehaviorOptions(options =>
+{
+    // Suppress default model validation error response to use our custom one
+    options.SuppressModelStateInvalidFilter = true;
+});
 
 // Add Health Checks
 builder.Services.AddHealthChecks()

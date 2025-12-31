@@ -361,6 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/MoodleInstanceBridge/Properties
+/MoodleInstanceBridge/.config/dotnet-tools.json
 /MoodleInstanceBridge/appsettings.Development.json
 /MoodleInstanceBridge/Properties/ServiceDependencies/UKS-ELFH-MoodleBridge-DEV - Web Deploy
 /MoodleInstanceBridge/Properties/serviceDependencies.json

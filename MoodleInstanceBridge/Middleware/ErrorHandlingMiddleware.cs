@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MoodleInstanceBridge.Models.Errors;
 
 namespace MoodleInstanceBridge.Middleware
 {
@@ -45,7 +46,7 @@ namespace MoodleInstanceBridge.Middleware
             // Structured error logging
             _logger.LogError(
                 exception,
-                "Unhandled exception occurred | Method: {Method} | Path: {Path} | CorrelationId: {CorrelationId} | InstanceId: {InstanceId} | ExceptionType: {ExceptionType}",
+                "Exception occurred | Method: {Method} | Path: {Path} | CorrelationId: {CorrelationId} | InstanceId: {InstanceId} | ExceptionType: {ExceptionType}",
                 context.Request.Method,
                 context.Request.Path,
                 correlationId,
@@ -54,18 +55,73 @@ namespace MoodleInstanceBridge.Middleware
             );
 
             context.Response.ContentType = "application/json";
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
-            var response = new
+            ErrorResponse errorResponse;
+
+            // Handle different exception types
+            switch (exception)
             {
-                error = "An error occurred processing your request.",
-                correlationId = correlationId,
-                instanceId = _instanceId,
-                // Only include stack trace in development
-                stackTrace = _environment.IsDevelopment() ? exception.ToString() : null
+                case ValidationException validationEx:
+                    context.Response.StatusCode = validationEx.StatusCode;
+                    errorResponse = new ValidationErrorResponse
+                    {
+                        CorrelationId = correlationId,
+                        InstanceId = _instanceId,
+                        Errors = validationEx.ValidationErrors,
+                        Detail = _environment.IsDevelopment() ? exception.ToString() : null
+                    };
+                    break;
+
+                case MoodleUpstreamException moodleEx:
+                    context.Response.StatusCode = moodleEx.StatusCode;
+                    errorResponse = new ErrorResponse
+                    {
+                        ErrorCode = nameof(ErrorCode.MoodleUpstreamError),
+                        Message = moodleEx.Message,
+                        CorrelationId = correlationId,
+                        InstanceId = _instanceId,
+                        Detail = _environment.IsDevelopment() ? exception.ToString() : null,
+                        Metadata = new Dictionary<string, object>
+                        {
+                            ["moodleInstanceId"] = moodleEx.MoodleInstanceId ?? "unknown",
+                            ["moodleStatusCode"] = moodleEx.MoodleStatusCode ?? 0
+                        }
+                    };
+                    break;
+
+                case StandardException standardEx:
+                    context.Response.StatusCode = standardEx.StatusCode;
+                    errorResponse = new ErrorResponse
+                    {
+                        ErrorCode = standardEx.ErrorCode.ToString(),
+                        Message = standardEx.Message,
+                        CorrelationId = correlationId,
+                        InstanceId = _instanceId,
+                        Detail = _environment.IsDevelopment() ? exception.ToString() : null,
+                        Metadata = standardEx.Metadata
+                    };
+                    break;
+
+                default:
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    errorResponse = new ErrorResponse
+                    {
+                        ErrorCode = nameof(ErrorCode.InternalServerError),
+                        Message = "An unexpected error occurred while processing your request.",
+                        CorrelationId = correlationId,
+                        InstanceId = _instanceId,
+                        Detail = _environment.IsDevelopment() ? exception.ToString() : null
+                    };
+                    break;
+            }
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             };
 
-            var jsonResponse = JsonSerializer.Serialize(response);
+            var jsonResponse = JsonSerializer.Serialize(errorResponse, options);
             await context.Response.WriteAsync(jsonResponse);
         }
     }
