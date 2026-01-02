@@ -6,9 +6,32 @@ using Microsoft.ApplicationInsights.Extensibility;
 using MoodleInstanceBridge.Telemetry;
 using MoodleInstanceBridge.Middleware;
 using MoodleInstanceBridge.HealthChecks;
-
+using Azure.Identity;
+using System.Net;
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.ConfigureAppConfiguration((context, config) =>
+{
+    var builtConfig = config.Build();
+    var appConfigConnection = builtConfig["AppConfig:ConnectionString"];
 
+    if (!string.IsNullOrWhiteSpace(appConfigConnection))
+    {
+        config.AddAzureAppConfiguration(options =>
+        {
+            options
+                .Connect(appConfigConnection)
+                .ConfigureKeyVault(kv =>
+                {
+                    kv.SetCredential(new DefaultAzureCredential());
+                });
+        });
+    }
+});
+
+//
+//  Services
+//
+builder.Services.AddControllers();
 // Add Application Insights
 builder.Services.AddApplicationInsightsTelemetry(options =>
 {
@@ -81,7 +104,11 @@ app.UseExceptionHandler(errorApp =>
 
         await context.Response.WriteAsJsonAsync(new
         {
-            error = "Internal server error"
+            error = new
+            {
+                code = "INTERNAL_SERVER_ERROR",
+                message = "An unexpected error occurred"
+            }
         });
     });
 });
@@ -109,6 +136,7 @@ app.UseSwaggerUI(options =>
 });
 
 app.UseHttpsRedirection();
+app.UseMiddleware<MoodleInstanceBridge.Middleware.ApiKeyMiddleware>();
 app.UseAuthorization();
 
 // Map Health Check endpoint
