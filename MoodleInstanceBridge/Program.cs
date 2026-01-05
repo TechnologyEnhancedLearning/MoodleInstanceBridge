@@ -6,9 +6,43 @@ using Microsoft.ApplicationInsights.Extensibility;
 using MoodleInstanceBridge.Telemetry;
 using MoodleInstanceBridge.Middleware;
 using MoodleInstanceBridge.HealthChecks;
+using Azure.Identity;
+using Microsoft.Azure.AppConfiguration.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+bool appConfigEnabled = false;
+
+builder.Services.AddAzureAppConfiguration();
+
+var appConfigConnection =
+    builder.Configuration["AppConfig:ConnectionString"];
+
+if (!string.IsNullOrWhiteSpace(appConfigConnection))
+{
+    builder.Configuration.AddAzureAppConfiguration(options =>
+    {
+        options
+            .Connect(appConfigConnection)
+            .ConfigureKeyVault(kv =>
+            {
+                kv.SetCredential(new DefaultAzureCredential());
+            })
+            .ConfigureRefresh(refresh =>
+            {
+                refresh
+                    .Register("AppSettings:Sentinel", refreshAll: true)
+                    .SetRefreshInterval(TimeSpan.FromSeconds(30));
+            });
+    });
+
+    appConfigEnabled = true;
+}
+
+
+//
+//  Services
+//
 // Add Application Insights
 builder.Services.AddApplicationInsightsTelemetry(options =>
 {
@@ -81,7 +115,11 @@ app.UseExceptionHandler(errorApp =>
 
         await context.Response.WriteAsJsonAsync(new
         {
-            error = "Internal server error"
+            error = new
+            {
+                code = "INTERNAL_SERVER_ERROR",
+                message = "An unexpected error occurred"
+            }
         });
     });
 });
@@ -109,6 +147,11 @@ app.UseSwaggerUI(options =>
 });
 
 app.UseHttpsRedirection();
+if (appConfigEnabled)
+{
+    app.UseAzureAppConfiguration();
+}
+app.UseMiddleware<MoodleInstanceBridge.Middleware.ApiKeyMiddleware>();
 app.UseAuthorization();
 
 // Map Health Check endpoint
