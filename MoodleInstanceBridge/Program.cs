@@ -7,31 +7,42 @@ using MoodleInstanceBridge.Telemetry;
 using MoodleInstanceBridge.Middleware;
 using MoodleInstanceBridge.HealthChecks;
 using Azure.Identity;
-using System.Net;
-var builder = WebApplication.CreateBuilder(args);
-builder.Host.ConfigureAppConfiguration((context, config) =>
-{
-    var builtConfig = config.Build();
-    var appConfigConnection = builtConfig["AppConfig:ConnectionString"];
+using Microsoft.Azure.AppConfiguration.AspNetCore;
 
-    if (!string.IsNullOrWhiteSpace(appConfigConnection))
+var builder = WebApplication.CreateBuilder(args);
+
+bool appConfigEnabled = false;
+
+builder.Services.AddAzureAppConfiguration();
+
+var appConfigConnection =
+    builder.Configuration["AppConfig:ConnectionString"];
+
+if (!string.IsNullOrWhiteSpace(appConfigConnection))
+{
+    builder.Configuration.AddAzureAppConfiguration(options =>
     {
-        config.AddAzureAppConfiguration(options =>
-        {
-            options
-                .Connect(appConfigConnection)
-                .ConfigureKeyVault(kv =>
-                {
-                    kv.SetCredential(new DefaultAzureCredential());
-                });
-        });
-    }
-});
+        options
+            .Connect(appConfigConnection)
+            .ConfigureKeyVault(kv =>
+            {
+                kv.SetCredential(new DefaultAzureCredential());
+            })
+            .ConfigureRefresh(refresh =>
+            {
+                refresh
+                    .Register("AppSettings:Sentinel", refreshAll: true)
+                    .SetRefreshInterval(TimeSpan.FromSeconds(30));
+            });
+    });
+
+    appConfigEnabled = true;
+}
+
 
 //
 //  Services
 //
-builder.Services.AddControllers();
 // Add Application Insights
 builder.Services.AddApplicationInsightsTelemetry(options =>
 {
@@ -136,6 +147,10 @@ app.UseSwaggerUI(options =>
 });
 
 app.UseHttpsRedirection();
+if (appConfigEnabled)
+{
+    app.UseAzureAppConfiguration();
+}
 app.UseMiddleware<MoodleInstanceBridge.Middleware.ApiKeyMiddleware>();
 app.UseAuthorization();
 
