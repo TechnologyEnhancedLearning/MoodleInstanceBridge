@@ -1,16 +1,34 @@
+using Azure.Identity;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Diagnostics;
-using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
-using Microsoft.ApplicationInsights.Extensibility;
-using MoodleInstanceBridge.Telemetry;
-using MoodleInstanceBridge.Middleware;
-using MoodleInstanceBridge.HealthChecks;
-using Azure.Identity;
 using Microsoft.Azure.AppConfiguration.AspNetCore;
+using Microsoft.EntityFrameworkCore;
+using MoodleInstanceBridge.Data;
+using MoodleInstanceBridge.HealthChecks;
+using MoodleInstanceBridge.Middleware;
+using MoodleInstanceBridge.Services.Background;
+using MoodleInstanceBridge.Services.Configuration;
+using MoodleInstanceBridge.Telemetry;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
+// Add Database Context
+var connectionString = builder.Configuration.GetConnectionString("LearningHubDbConnection");
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException(
+        "Database connection string 'LearningHubDbConnection' is not configured. " +
+        "Please set it in appsettings.json or environment variables.");
+}
 
+builder.Services.AddDbContextFactory<MoodleInstanceContext>(options =>
+{
+    options.UseSqlServer(connectionString, sqlOptions => sqlOptions.EnableRetryOnFailure());
+});
+
+// Azure App Configuration
 bool appConfigEnabled = false;
 
 builder.Services.AddAzureAppConfiguration();
@@ -40,9 +58,6 @@ if (!string.IsNullOrWhiteSpace(appConfigConnection))
 }
 
 
-//
-//  Services
-//
 // Add Application Insights
 builder.Services.AddApplicationInsightsTelemetry(options =>
 {
@@ -53,6 +68,11 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
 
 // Register Telemetry Initializer
 builder.Services.AddSingleton<ITelemetryInitializer, InstanceTelemetryInitializer>();
+
+// Register configuration services
+builder.Services.AddSingleton<IInstanceConfigurationService, InstanceConfigurationService>();
+builder.Services.AddHostedService<ConfigurationRefreshService>();
+
 
 // Register services
 builder.Services.AddScoped<MoodleInstanceBridge.Services.AggregationService>();
@@ -71,7 +91,8 @@ builder.Services.AddControllers(options =>
 
 // Add Health Checks
 builder.Services.AddHealthChecks()
-    .AddCheck<InstanceHealthCheck>("instance_health");
+    .AddCheck<InstanceHealthCheck>("instance_health")
+    .AddCheck<ConfigurationHealthCheck>("configuration_health");
 
 // API Versioning
 builder.Services.AddApiVersioning(options =>
@@ -151,7 +172,7 @@ if (appConfigEnabled)
 {
     app.UseAzureAppConfiguration();
 }
-app.UseMiddleware<MoodleInstanceBridge.Middleware.ApiKeyMiddleware>();
+app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
 
 // Map Health Check endpoint
