@@ -77,6 +77,13 @@ builder.Services.AddHostedService<ConfigurationRefreshService>();
 // Register services
 builder.Services.AddScoped<MoodleInstanceBridge.Services.AggregationService>();
 
+// Register HttpClient for Moodle client
+builder.Services.AddHttpClient();
+
+// Register Moodle services
+builder.Services.AddScoped<MoodleInstanceBridge.Services.Moodle.IMoodleClient, MoodleInstanceBridge.Services.Moodle.MoodleClient>();
+builder.Services.AddScoped<MoodleInstanceBridge.Services.Users.IUserLookupService, MoodleInstanceBridge.Services.Users.UserLookupService>();
+
 // Add services
 builder.Services.AddControllers(options =>
 {
