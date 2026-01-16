@@ -1,24 +1,29 @@
-﻿using MoodleInstanceBridge.Interfaces;
+﻿using LearningHub.Nhs.Models.Moodle;
+using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
+using MoodleInstanceBridge.Models.Configuration;
+using MoodleInstanceBridge.Models.Errors;
 using MoodleInstanceBridge.Models.Users;
+using MoodleInstanceBridge.Services.Orchestration;
 
 namespace MoodleInstanceBridge.Services.Users
 {
     /// <summary>
-    /// Service for looking up Moodle user IDs across instances with parallel fan-out
+    /// Service for looking up Moodle user IDs across instances
+    /// Uses orchestrator for multi-instance coordination
     /// </summary>
     public class UserService : IUserService
     {
-        private readonly IInstanceConfigurationService _configService;
+        private readonly MultiInstanceOrchestrator<List<MoodleUser>> _orchestrator;
         private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
-            IInstanceConfigurationService configService,
+            MultiInstanceOrchestrator<List<MoodleUser>> orchestrator,
             IMoodleIntegrationService moodleIntegrationService,
             ILogger<UserService> logger)
         {
-            _configService = configService;
+            _orchestrator = orchestrator;
             _moodleIntegrationService = moodleIntegrationService;
             _logger = logger;
         }
@@ -31,78 +36,25 @@ namespace MoodleInstanceBridge.Services.Users
             if (string.IsNullOrWhiteSpace(email))
                 throw new ArgumentException("Email cannot be null or whitespace.", nameof(email));
 
-            _logger.LogInformation("Looking up Moodle user IDs for email: {Email}", email);
-
-            var response = new MoodleUserIdsResponse();
-
-            // Get all enabled instance configurations
-            var configurations = await _configService.GetAllConfigurationsAsync(cancellationToken);
-
-            if (!configurations.Any())
-            {
-                _logger.LogWarning("No enabled Moodle instances configured");
-                return response;
-            }
-
-            _logger.LogInformation(
-                "Querying {Count} Moodle instances for user with email {Email}",
-                configurations.Count,
-                email
+            return await _orchestrator.ExecuteAcrossInstancesAsync(
+                operationName: $"User lookup by email: {email}",
+                instanceOperation: (config, ct) => GetUserFromInstanceAsync(config, email, ct),
+                resultAggregator: AggregateUserResults,
+                createEmptyResponse: () => new MoodleUserIdsResponse(),
+                cancellationToken: cancellationToken
             );
-
-            //  https://hee-tis.atlassian.net/browse/TD-6563 Create fan-out tasks for parallel execution
-            // creates and starts multiple asynchronous lookup operations in parallel
-            var lookupTasks = configurations
-                .Select(config => LookupUserInInstanceAsync(config.ShortName, email, cancellationToken))
-                .ToList();
-
-            // Wait for all tasks to complete (using WhenAll to allow all to finish even if some fail)
-            var results = await Task.WhenAll(lookupTasks);
-
-            // Process results
-            foreach (var (shortName, userId, error) in results)
-            {
-                if (error != null)
-                {
-                    response.Errors.Add(error);
-                }
-                else
-                {
-                    response.MoodleUserIds.Add(new MoodleUserIdResult
-                    {
-                        Instance = shortName,
-                        UserId = userId
-                    });
-                }
-            }
-
-            _logger.LogInformation(
-                "User lookup completed: {SuccessCount} successful, {ErrorCount} errors",
-                response.MoodleUserIds.Count,
-                response.Errors.Count
-            );
-
-            return response;
         }
 
         /// <summary>
-        /// Look up a user in a specific Moodle instance
+        /// Get user from a specific Moodle instance - domain logic only
         /// </summary>
-        private async Task<(string ShortName, int? UserId, InstanceError? Error)> LookupUserInInstanceAsync(
-            string shortName,
+        private async Task<(string ShortName, List<MoodleUser>? Result, InstanceError? Error)> GetUserFromInstanceAsync(
+            MoodleInstanceConfig config,
             string email,
             CancellationToken cancellationToken)
         {
             try
             {
-                // Get the configuration for this instance
-                var config = await _configService.GetConfigurationAsync(shortName, cancellationToken);
-                if (config == null)
-                {
-                    _logger.LogError("Configuration not found for instance {Instance}", shortName);
-                    return (shortName, null, InstanceErrorHelper.CreateConfigurationError(shortName));
-                }
-
                 // Call Moodle Web Service to get users by email
                 var users = await _moodleIntegrationService.GetUsersByFieldAsync(
                     config,
@@ -111,51 +63,58 @@ namespace MoodleInstanceBridge.Services.Users
                     cancellationToken
                 );
 
-                // If user found, return the ID, otherwise return null
                 if (users.Any())
                 {
-                    var user = users.First(); // Should only be one user per email
                     _logger.LogInformation(
-                        "Found user {UserId} in instance {Instance}",
-                        user.Id,
-                        shortName
+                        "Found {Count} user(s) in instance {Instance}",
+                        users.Count,
+                        config.ShortName
                     );
-                    return (shortName, user.Id, null);
                 }
                 else
                 {
                     _logger.LogInformation(
                         "User not found in instance {Instance}",
-                        shortName
+                        config.ShortName
                     );
-                    return (shortName, null, null);
                 }
+
+                return (config.ShortName, users, null);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
                     "Error looking up user in instance {Instance}",
-                    shortName
+                    config.ShortName
                 );
 
-                // Determine appropriate error code
-                string errorCode = "INSTANCE_UNAVAILABLE";
-                string errorMessage = "Moodle instance could not be reached";
+                return (config.ShortName, null, InstanceErrorHelper.CreateFromException(config.ShortName, ex));
+            }
+        }
 
-                if (ex.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+        /// <summary>
+        /// Aggregate user lookup results from multiple instances
+        /// </summary>
+        private void AggregateUserResults(
+            MoodleUserIdsResponse response,
+            IEnumerable<(string ShortName, List<MoodleUser>? Result, InstanceError? Error)> results)
+        {
+            foreach (var (shortName, users, error) in results)
+            {
+                if (error != null)
                 {
-                    errorCode = "TIMEOUT";
-                    errorMessage = "Request to Moodle instance timed out";
+                    response.Errors.Add(error);
                 }
-                else if (ex.Message.Contains("connect", StringComparison.OrdinalIgnoreCase))
+                else if (users != null && users.Any())
                 {
-                    errorCode = "CONNECTION_ERROR";
-                    errorMessage = "Failed to connect to Moodle instance";
+                    var user = users.First(); // Should only be one user per email
+                    response.MoodleUserIds.Add(new MoodleUserIdResult
+                    {
+                        Instance = shortName,
+                        UserId = user.Id
+                    });
                 }
-
-                // ❗ LookupUserInInstanceAsync must never throw It should always return a tuple, even on failure.
-                return (shortName, null, InstanceErrorHelper.CreateFromException(shortName, ex));
             }
         }
     }

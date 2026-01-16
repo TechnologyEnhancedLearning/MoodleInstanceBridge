@@ -1,5 +1,5 @@
 using LearningHub.Nhs.Models.Moodle.API;
-using MoodleInstanceBridge.Models.Users;
+using MoodleInstanceBridge.Models.Errors;
 using System.Text.Json.Serialization;
 
 namespace MoodleInstanceBridge.Models.Courses

@@ -1,4 +1,4 @@
-using MoodleInstanceBridge.Models.Users;
+using MoodleInstanceBridge.Models.Errors;
 
 namespace MoodleInstanceBridge.Services
 {

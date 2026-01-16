@@ -2,27 +2,33 @@ using LearningHub.Nhs.Models.Moodle;
 using LearningHub.Nhs.Models.Moodle.API;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
+using MoodleInstanceBridge.Models.Configuration;
 using MoodleInstanceBridge.Models.Courses;
-using MoodleInstanceBridge.Models.Users;
+using MoodleInstanceBridge.Models.Errors;
+using MoodleInstanceBridge.Services.Orchestration;
 
 namespace MoodleInstanceBridge.Services.Courses
 {
     /// <summary>
-    /// Service for looking up course data across instances with parallel fan-out
+    /// Service for looking up course data across instances
+    /// Uses orchestrators for multi-instance coordination
     /// </summary>
     public class CourseService : ICourseService
     {
-        private readonly IInstanceConfigurationService _configService;
-        private readonly IMoodleIntegrationService _moodleClient;
+        private readonly MultiInstanceOrchestrator<List<MoodleCategory>> _categoryOrchestrator;
+        private readonly MultiInstanceOrchestrator<MoodleCoursesResponseModel> _courseOrchestrator;
+        private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<CourseService> _logger;
 
         public CourseService(
-            IInstanceConfigurationService configService,
-            IMoodleIntegrationService moodleClient,
+            MultiInstanceOrchestrator<List<MoodleCategory>> categoryOrchestrator,
+            MultiInstanceOrchestrator<MoodleCoursesResponseModel> courseOrchestrator,
+            IMoodleIntegrationService moodleIntegrationService,
             ILogger<CourseService> logger)
         {
-            _configService = configService;
-            _moodleClient = moodleClient;
+            _categoryOrchestrator = categoryOrchestrator;
+            _courseOrchestrator = courseOrchestrator;
+            _moodleIntegrationService = moodleIntegrationService;
             _logger = logger;
         }
 
@@ -30,33 +36,115 @@ namespace MoodleInstanceBridge.Services.Courses
         public async Task<CategoriesResponse> GetCategoriesAsync(
             CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Looking up categories from all Moodle instances");
-
-            var response = new CategoriesResponse();
-
-            // Get all enabled instance configurations
-            var configurations = await _configService.GetAllConfigurationsAsync(cancellationToken);
-
-            if (!configurations.Any())
-            {
-                _logger.LogWarning("No enabled Moodle instances configured");
-                return response;
-            }
-
-            _logger.LogInformation(
-                "Querying {Count} Moodle instances for categories",
-                configurations.Count
+            return await _categoryOrchestrator.ExecuteAcrossInstancesAsync(
+                operationName: "Category lookup",
+                instanceOperation: (config, ct) => GetCategoriesFromInstanceAsync(config, ct),
+                resultAggregator: AggregateCategoryResults,
+                createEmptyResponse: () => new CategoriesResponse(),
+                cancellationToken: cancellationToken
             );
+        }
 
-            // Create fan-out tasks for parallel execution
-            var lookupTasks = configurations
-                .Select(config => GetCategoriesFromInstanceAsync(config.ShortName, cancellationToken))
-                .ToList();
+        /// <inheritdoc />
+        public async Task<CoursesResponse> SearchCoursesAsync(
+            string field,
+            string value,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(field))
+                throw new ArgumentException("Field cannot be null or whitespace.", nameof(field));
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(value));
 
-            // Wait for all tasks to complete
-            var results = await Task.WhenAll(lookupTasks);
+            return await _courseOrchestrator.ExecuteAcrossInstancesAsync(
+                operationName: $"Course search by {field}={value}",
+                instanceOperation: (config, ct) => SearchCoursesInInstanceAsync(config, field, value, ct),
+                resultAggregator: AggregateCourseResults,
+                createEmptyResponse: () => new CoursesResponse(),
+                cancellationToken: cancellationToken
+            );
+        }
 
-            // Process results
+        /// <summary>
+        /// Get categories from a specific Moodle instance - domain logic only
+        /// </summary>
+        private async Task<(string ShortName, List<MoodleCategory>? Result, InstanceError? Error)> 
+            GetCategoriesFromInstanceAsync(
+                MoodleInstanceConfig config,
+                CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Call Moodle Web Service to get categories
+                var categories = await _moodleIntegrationService.GetCategoriesAsync(config, cancellationToken);
+
+                _logger.LogInformation(
+                    "Found {Count} categories in instance {Instance}",
+                    categories.Count,
+                    config.ShortName
+                );
+
+                return (config.ShortName, categories, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error getting categories from instance {Instance}",
+                    config.ShortName
+                );
+
+                return (config.ShortName, null, InstanceErrorHelper.CreateFromException(config.ShortName, ex));
+            }
+        }
+
+        /// <summary>
+        /// Search for courses in a specific Moodle instance - domain logic only
+        /// </summary>
+        private async Task<(string ShortName, MoodleCoursesResponseModel? Result, InstanceError? Error)> 
+            SearchCoursesInInstanceAsync(
+                MoodleInstanceConfig config,
+                string field,
+                string value,
+                CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Call Moodle Web Service to search for courses
+                var coursesResponse = await _moodleIntegrationService.GetCoursesByFieldAsync(
+                    config,
+                    field,
+                    value,
+                    cancellationToken
+                );
+
+                //_logger.LogInformation(
+                //    "Found {Count} courses in instance {Instance}",
+                //    coursesResponse.courses?.Count ?? 0,
+                //    config.ShortName
+                //);
+
+                return (config.ShortName, coursesResponse, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error searching courses in instance {Instance}",
+                    config.ShortName
+                );
+
+                return (config.ShortName, null, InstanceErrorHelper.CreateFromException(config.ShortName, ex));
+            }
+        }
+
+        /// <summary>
+        /// Aggregate category results from multiple instances
+        /// </summary>
+        private void AggregateCategoryResults(
+            CategoriesResponse response,
+            IEnumerable<(string ShortName, List<MoodleCategory>? Result, InstanceError? Error)> results)
+        {
             foreach (var (shortName, categories, error) in results)
             {
                 if (error != null)
@@ -75,69 +163,20 @@ namespace MoodleInstanceBridge.Services.Courses
                             Parent = category.Parent,
                             Depth = category.Depth,
                             Path = category.Path,
-                            //DescriptionFormat = category.DescriptionFormat,
-                            //SortOrder = category.SortOrder,
-                            //CourseCount = category.CourseCount,
                             Visible = category.Visible
                         });
                     }
                 }
             }
-
-            _logger.LogInformation(
-                "Category lookup completed: {CategoryCount} categories from {SuccessCount} instances, {ErrorCount} errors",
-                response.Categories.Count,
-                results.Count(r => r.Error == null),
-                response.Errors.Count
-            );
-
-            return response;
         }
 
-        /// <inheritdoc />
-        public async Task<CoursesResponse> SearchCoursesAsync(
-            string field,
-            string value,
-            CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Aggregate course search results from multiple instances
+        /// </summary>
+        private void AggregateCourseResults(
+            CoursesResponse response,
+            IEnumerable<(string ShortName, MoodleCoursesResponseModel? Result, InstanceError? Error)> results)
         {
-            if (string.IsNullOrWhiteSpace(field))
-                throw new ArgumentException("Field cannot be null or whitespace.", nameof(field));
-            if (string.IsNullOrWhiteSpace(value))
-                throw new ArgumentException("Value cannot be null or whitespace.", nameof(value));
-
-            _logger.LogInformation(
-                "Searching for courses with {Field}={Value} across all Moodle instances",
-                field,
-                value
-            );
-
-            var response = new CoursesResponse();
-
-            // Get all enabled instance configurations
-            var configurations = await _configService.GetAllConfigurationsAsync(cancellationToken);
-
-            if (!configurations.Any())
-            {
-                _logger.LogWarning("No enabled Moodle instances configured");
-                return response;
-            }
-
-            _logger.LogInformation(
-                "Querying {Count} Moodle instances for courses with {Field}={Value}",
-                configurations.Count,
-                field,
-                value
-            );
-
-            // Create fan-out tasks for parallel execution
-            var lookupTasks = configurations
-                .Select(config => SearchCoursesInInstanceAsync(config.ShortName, field, value, cancellationToken))
-                .ToList();
-
-            // Wait for all tasks to complete
-            var results = await Task.WhenAll(lookupTasks);
-
-            // Process results
             foreach (var (shortName, courses, error) in results)
             {
                 if (error != null)
@@ -148,109 +187,6 @@ namespace MoodleInstanceBridge.Services.Courses
                 {
                     response.Courses = courses;
                 }
-            }
-
-            //_logger.LogInformation(
-            //    "Course search completed: {CourseCount} courses from {SuccessCount} instances, {ErrorCount} errors",
-            //    response.Courses?.courses?.Count ?? 0,
-            //    results.Count(r => r.Error == null),
-            //    response.Errors.Count
-            //);
-
-            return response;
-        }
-
-        /// <summary>
-        /// Get categories from a specific Moodle instance
-        /// </summary>
-        private async Task<(string ShortName, List<LearningHub.Nhs.Models.Moodle.MoodleCategory>? Categories, InstanceError? Error)> 
-            GetCategoriesFromInstanceAsync(
-                string shortName,
-                CancellationToken cancellationToken)
-        {
-            try
-            {
-                // Get the configuration for this instance
-                var config = await _configService.GetConfigurationAsync(shortName, cancellationToken);
-                if (config == null)
-                {
-                    _logger.LogError("Configuration not found for instance {Instance}", shortName);
-                    return (shortName, null, new InstanceError
-                    {
-                        Instance = shortName,
-                        Code = "CONFIGURATION_ERROR",
-                        Message = "Instance configuration not found"
-                    });
-                }
-
-                // Call Moodle Web Service to get categories
-                var categories = await _moodleClient.GetCategoriesAsync(config, cancellationToken);
-
-                _logger.LogInformation(
-                    "Found {Count} categories in instance {Instance}",
-                    categories.Count,
-                    shortName
-                );
-
-                return (shortName, categories, null);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Error getting categories from instance {Instance}",
-                    shortName
-                );
-
-                return (shortName, null, InstanceErrorHelper.CreateFromException(shortName, ex));
-            }
-        }
-
-        /// <summary>
-        /// Search for courses in a specific Moodle instance
-        /// </summary>
-        private async Task<(string ShortName, MoodleCoursesResponseModel? Courses, InstanceError? Error)> 
-            SearchCoursesInInstanceAsync(
-                string shortName,
-                string field,
-                string value,
-                CancellationToken cancellationToken)
-        {
-            try
-            {
-                // Get the configuration for this instance
-                var config = await _configService.GetConfigurationAsync(shortName, cancellationToken);
-                if (config == null)
-                {
-                    _logger.LogError("Configuration not found for instance {Instance}", shortName);
-                    return (shortName, null, InstanceErrorHelper.CreateConfigurationError(shortName));
-                }
-
-                // Call Moodle Web Service to search for courses
-                var coursesResponse = await _moodleClient.GetCoursesByFieldAsync(
-                    config,
-                    field,
-                    value,
-                    cancellationToken
-                );
-
-                //_logger.LogInformation(
-                //    "Found {Count} courses in instance {Instance}",
-                //    coursesResponse.courses?.Count ?? 0,
-                //    shortName
-                //);
-
-                return (shortName, coursesResponse, null);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Error searching courses in instance {Instance}",
-                    shortName
-                );
-
-                return (shortName, null, InstanceErrorHelper.CreateFromException(shortName, ex));
             }
         }
     }

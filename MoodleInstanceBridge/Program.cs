@@ -96,6 +96,9 @@ builder.Services.AddScoped<IMoodleCourseService, MoodleCourseService>();
 // Facade for backwards compatibility
 builder.Services.AddScoped<IMoodleIntegrationService, MoodleIntegrationService>();
 
+// Multi-instance orchestrators
+builder.Services.AddScoped(typeof(MoodleInstanceBridge.Services.Orchestration.MultiInstanceOrchestrator<>));
+
 // Aggregation services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
