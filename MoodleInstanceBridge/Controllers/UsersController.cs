@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using MoodleInstanceBridge.Attributes;
+using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Errors;
 using MoodleInstanceBridge.Models.Users;
-using MoodleInstanceBridge.Services.Users;
 
 namespace MoodleInstanceBridge.Controllers
 {
@@ -14,14 +14,14 @@ namespace MoodleInstanceBridge.Controllers
     [Route("api/v{version:apiVersion}/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly IUserLookupService _userLookupService;
+        private readonly IUserService _userService;
         private readonly ILogger<UsersController> _logger;
 
         public UsersController(
-            IUserLookupService userLookupService,
+            IUserService userLookupService,
             ILogger<UsersController> logger)
         {
-            _userLookupService = userLookupService;
+            _userService = userLookupService;
             _logger = logger;
         }
 
@@ -36,7 +36,7 @@ namespace MoodleInstanceBridge.Controllers
         /// Moodle user ID for each instance where the user exists. If the user does not exist
         /// in an instance, null is returned for that instance. Partial failures are included
         /// in the errors array.
-
+        /// </remarks>
         [HttpGet("{email}/instance-ids")]
         [ProducesResponseType(typeof(MoodleUserIdsResponse), StatusCodes.Status200OK)]
         [ValidationErrorResponse]
@@ -71,7 +71,7 @@ namespace MoodleInstanceBridge.Controllers
                 email
             );           
 
-            var response = await _userLookupService.GetMoodleUserIdsByEmailAsync(
+            var response = await _userService.GetMoodleUserIdsByEmailAsync(
                 email,
                 cancellationToken
             );

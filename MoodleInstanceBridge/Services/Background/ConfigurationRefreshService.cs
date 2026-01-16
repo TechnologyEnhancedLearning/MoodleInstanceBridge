@@ -1,4 +1,4 @@
-using MoodleInstanceBridge.Services.Configuration;
+using MoodleInstanceBridge.Interfaces;
 
 namespace MoodleInstanceBridge.Services.Background
 {

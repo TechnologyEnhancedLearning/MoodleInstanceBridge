@@ -2,6 +2,7 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.EntityFrameworkCore;
 using MoodleInstanceBridge.Data;
+using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Models.Configuration;
 using System.Collections.Concurrent;
 

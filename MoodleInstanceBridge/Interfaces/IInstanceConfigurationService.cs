@@ -1,6 +1,6 @@
 using MoodleInstanceBridge.Models.Configuration;
 
-namespace MoodleInstanceBridge.Services.Configuration
+namespace MoodleInstanceBridge.Interfaces
 {
     /// <summary>
     /// Service for loading and managing Moodle instance configurations

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using MoodleInstanceBridge.Services.Configuration;
+using MoodleInstanceBridge.Interfaces;
 
 namespace MoodleInstanceBridge.HealthChecks
 {

@@ -1,27 +1,25 @@
-﻿using MoodleInstanceBridge.Models.Users;
-using MoodleInstanceBridge.Services.Configuration;
-using MoodleInstanceBridge.Services.Moodle;
-using System;
-using System.Collections.Concurrent;
+﻿using MoodleInstanceBridge.Interfaces;
+using MoodleInstanceBridge.Interfaces.Services;
+using MoodleInstanceBridge.Models.Users;
 
 namespace MoodleInstanceBridge.Services.Users
 {
     /// <summary>
     /// Service for looking up Moodle user IDs across instances with parallel fan-out
     /// </summary>
-    public class UserLookupService : IUserLookupService
+    public class UserService : IUserService
     {
         private readonly IInstanceConfigurationService _configService;
-        private readonly IMoodleClient _moodleClient;
-        private readonly ILogger<UserLookupService> _logger;
+        private readonly IMoodleIntegrationService _moodleIntegrationService;
+        private readonly ILogger<UserService> _logger;
 
-        public UserLookupService(
+        public UserService(
             IInstanceConfigurationService configService,
-            IMoodleClient moodleClient,
-            ILogger<UserLookupService> logger)
+            IMoodleIntegrationService moodleIntegrationService,
+            ILogger<UserService> logger)
         {
             _configService = configService;
-            _moodleClient = moodleClient;
+            _moodleIntegrationService = moodleIntegrationService;
             _logger = logger;
         }
 
@@ -102,16 +100,11 @@ namespace MoodleInstanceBridge.Services.Users
                 if (config == null)
                 {
                     _logger.LogError("Configuration not found for instance {Instance}", shortName);
-                    return (shortName, null, new InstanceError
-                    {
-                        Instance = shortName,
-                        Code = "CONFIGURATION_ERROR",
-                        Message = "Instance configuration not found"
-                    });
+                    return (shortName, null, InstanceErrorHelper.CreateConfigurationError(shortName));
                 }
 
                 // Call Moodle Web Service to get users by email
-                var users = await _moodleClient.GetUsersByFieldAsync(
+                var users = await _moodleIntegrationService.GetUsersByFieldAsync(
                     config,
                     "email",
                     email,
@@ -162,12 +155,7 @@ namespace MoodleInstanceBridge.Services.Users
                 }
 
                 // ❗ LookupUserInInstanceAsync must never throw It should always return a tuple, even on failure.
-                return (shortName, null, new InstanceError
-                {
-                    Instance = shortName,
-                    Code = errorCode,
-                    Message = errorMessage
-                });
+                return (shortName, null, InstanceErrorHelper.CreateFromException(shortName, ex));
             }
         }
     }
