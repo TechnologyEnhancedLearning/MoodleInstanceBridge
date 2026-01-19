@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using MoodleInstanceBridge.Services.Configuration;
+using MoodleInstanceBridge.Interfaces;
 
 namespace MoodleInstanceBridge.Controllers
 {

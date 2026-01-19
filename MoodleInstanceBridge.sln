@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35931.197 d17.13
+VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MoodleInstanceBridge", "MoodleInstanceBridge\MoodleInstanceBridge.csproj", "{D4E088F2-A2B0-4BBF-9802-0BA117F0D41F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MoodleInstanceBridge.Tests", "MoodleInstanceBridge.Tests\MoodleInstanceBridge.Tests.csproj", "{C033E545-C6FF-E2F5-4A1B-FA648C712972}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{D4E088F2-A2B0-4BBF-9802-0BA117F0D41F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D4E088F2-A2B0-4BBF-9802-0BA117F0D41F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D4E088F2-A2B0-4BBF-9802-0BA117F0D41F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C033E545-C6FF-E2F5-4A1B-FA648C712972}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C033E545-C6FF-E2F5-4A1B-FA648C712972}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C033E545-C6FF-E2F5-4A1B-FA648C712972}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C033E545-C6FF-E2F5-4A1B-FA648C712972}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

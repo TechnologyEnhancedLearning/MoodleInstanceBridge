@@ -1,11 +1,11 @@
 using MoodleInstanceBridge.Models.Users;
 
-namespace MoodleInstanceBridge.Services.Users
+namespace MoodleInstanceBridge.Interfaces.Services
 {
     /// <summary>
     /// Service for looking up Moodle user IDs across instances
     /// </summary>
-    public interface IUserLookupService
+    public interface IUserService
     {
         /// <summary>
         /// Get Moodle user IDs for a given email across all enabled instances

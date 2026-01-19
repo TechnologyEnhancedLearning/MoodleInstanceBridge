@@ -1,12 +1,12 @@
+using LearningHub.Nhs.Models.Moodle;
 using MoodleInstanceBridge.Models.Configuration;
-using MoodleInstanceBridge.Models.Moodle;
 
-namespace MoodleInstanceBridge.Services.Moodle
+namespace MoodleInstanceBridge.Interfaces.Services
 {
     /// <summary>
-    /// Interface for Moodle Web Service client
+    /// Service for Moodle user-related operations
     /// </summary>
-    public interface IMoodleClient
+    public interface IMoodleUserService
     {
         /// <summary>
         /// Get users by field using core_user_get_users_by_field web service

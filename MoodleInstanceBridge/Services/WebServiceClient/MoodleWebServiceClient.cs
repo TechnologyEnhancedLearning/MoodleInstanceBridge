@@ -1,40 +1,39 @@
+using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Models.Configuration;
 using MoodleInstanceBridge.Models.Errors;
-using MoodleInstanceBridge.Models.Moodle;
 using System.Text.Json;
-using System.Web;
 
-namespace MoodleInstanceBridge.Services.Moodle
+namespace MoodleInstanceBridge.Services.WebServiceClient
 {
     /// <summary>
-    /// Client for interacting with Moodle Web Services
+    /// Generic client for executing Moodle Web Service requests
+    /// Handles HTTP communication, error checking, and deserialization
     /// </summary>
-    public class MoodleClient : IMoodleClient
+    public class MoodleWebServiceClient : IMoodleWebServiceClient
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly ILogger<MoodleClient> _logger;
+        private readonly ILogger<MoodleWebServiceClient> _logger;
         private const int DefaultTimeoutSeconds = 30;
 
-        public MoodleClient(IHttpClientFactory httpClientFactory, ILogger<MoodleClient> logger)
+        public MoodleWebServiceClient(IHttpClientFactory httpClientFactory, ILogger<MoodleWebServiceClient> logger)
         {
             _httpClientFactory = httpClientFactory;
             _logger = logger;
         }
 
-        public async Task<List<MoodleUser>> GetUsersByFieldAsync(
+        public async Task<string> ExecuteRequestAsync(
             MoodleInstanceConfig config,
-            string field,
-            string value,
+            string url,
+            string functionName,
             CancellationToken cancellationToken = default)
         {
-            ValidateInputs(config, field, value);
+            ValidateConfig(config);
 
             try
             {
-                var url = BuildWebServiceUrl(config, field, value);
-                var content = await ExecuteWebServiceRequestAsync(config, url, field, value, cancellationToken);
+                var content = await ExecuteWebServiceRequestAsync(config, url, functionName, cancellationToken);
                 ValidateMoodleResponse(config, content);
-                return DeserializeUserResponse(config, content, field, value);
+                return content;
             }
             catch (MoodleUpstreamException)
             {
@@ -46,34 +45,31 @@ namespace MoodleInstanceBridge.Services.Moodle
             }
         }
 
-        /// <summary>
-        /// Validates input parameters
-        /// </summary>
-        private static void ValidateInputs(MoodleInstanceConfig config, string field, string value)
+        public async Task<T> ExecuteRequestAsync<T>(
+            MoodleInstanceConfig config,
+            string url,
+            string functionName,
+            CancellationToken cancellationToken = default)
         {
-            if (config == null)
-                throw new ArgumentNullException(nameof(config));
-            if (string.IsNullOrWhiteSpace(field))
-                throw new ArgumentException("Field cannot be null or whitespace.", nameof(field));
-            if (string.IsNullOrWhiteSpace(value))
-                throw new ArgumentException("Value cannot be null or whitespace.", nameof(value));
+            var content = await ExecuteRequestAsync(config, url, functionName, cancellationToken);
+            
+            var result = JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            return result ?? throw new MoodleUpstreamException(
+                "Failed to deserialize Moodle response",
+                config.ShortName);
         }
 
         /// <summary>
-        /// Builds the Moodle Web Service URL with query parameters
+        /// Validates config parameter
         /// </summary>
-        /// TODO [BY]: Consider moving URL construction to a separate utility class if it grows more complex
-        private static string BuildWebServiceUrl(MoodleInstanceConfig config, string field, string value)
+        private static void ValidateConfig(MoodleInstanceConfig config)
         {
-            var baseUrl = config.BaseUrl.TrimEnd('/');
-            var queryParams = HttpUtility.ParseQueryString(string.Empty);
-            queryParams["wstoken"] = config.ApiToken;
-            queryParams["wsfunction"] = "core_user_get_users_by_field";
-            queryParams["moodlewsrestformat"] = "json";
-            queryParams["field"] = field;
-            queryParams["values[0]"] = value;
-
-            return $"{baseUrl}/webservice/rest/server.php?{queryParams}";
+            if (config == null)
+                throw new ArgumentNullException(nameof(config));
         }
 
         /// <summary>
@@ -82,19 +78,16 @@ namespace MoodleInstanceBridge.Services.Moodle
         private async Task<string> ExecuteWebServiceRequestAsync(
             MoodleInstanceConfig config,
             string url,
-            string field,
-            string value,
+            string functionName,
             CancellationToken cancellationToken)
         {
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds);
 
             _logger.LogDebug(
-                "Calling Moodle Web Service for instance {Instance}: {Function} with {Field}={Value}",
+                "Calling Moodle Web Service for instance {Instance}: {Function}",
                 config.ShortName,
-                "core_user_get_users_by_field", // TODO [BY]: Consider passing function name as parameter if this method is reused
-                field,
-                value
+                functionName
             );
 
             var response = await client.GetAsync(url, cancellationToken);
@@ -156,31 +149,6 @@ namespace MoodleInstanceBridge.Services.Moodle
                     config.ShortName
                 );
             }
-        }
-
-        /// <summary>
-        /// Deserializes the user response from JSON
-        /// </summary>
-        private List<MoodleUser> DeserializeUserResponse(
-            MoodleInstanceConfig config,
-            string content,
-            string field,
-            string value)
-        {
-            var users = JsonSerializer.Deserialize<List<MoodleUser>>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            _logger.LogInformation(
-                "Found {Count} users for {Field}={Value} in instance {Instance}",
-                users?.Count ?? 0,
-                field,
-                value,
-                config.ShortName
-            );
-
-            return users ?? new List<MoodleUser>();
         }
 
         /// <summary>

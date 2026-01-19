@@ -3,13 +3,18 @@ using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
-using Microsoft.Azure.AppConfiguration.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using MoodleInstanceBridge.Data;
 using MoodleInstanceBridge.HealthChecks;
+using MoodleInstanceBridge.Interfaces;
+using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Middleware;
 using MoodleInstanceBridge.Services.Background;
 using MoodleInstanceBridge.Services.Configuration;
+using MoodleInstanceBridge.Services.Courses;
+using MoodleInstanceBridge.Services.Moodle;
+using MoodleInstanceBridge.Services.Users;
+using MoodleInstanceBridge.Services.WebServiceClient;
 using MoodleInstanceBridge.Telemetry;
 using System.Net;
 
@@ -81,8 +86,22 @@ builder.Services.AddScoped<MoodleInstanceBridge.Services.AggregationService>();
 builder.Services.AddHttpClient();
 
 // Register Moodle services
-builder.Services.AddScoped<MoodleInstanceBridge.Services.Moodle.IMoodleClient, MoodleInstanceBridge.Services.Moodle.MoodleClient>();
-builder.Services.AddScoped<MoodleInstanceBridge.Services.Users.IUserLookupService, MoodleInstanceBridge.Services.Users.UserLookupService>();
+// Core web service client (generic HTTP/Moodle communication)
+builder.Services.AddScoped<IMoodleWebServiceClient, MoodleWebServiceClient>();
+
+// Domain-specific services
+builder.Services.AddScoped<IMoodleUserService, MoodleUserService>();
+builder.Services.AddScoped<IMoodleCourseService, MoodleCourseService>();
+
+// Facade for backwards compatibility
+builder.Services.AddScoped<IMoodleIntegrationService, MoodleIntegrationService>();
+
+// Multi-instance orchestrators
+builder.Services.AddScoped(typeof(MoodleInstanceBridge.Services.Orchestration.MultiInstanceOrchestrator<>));
+
+// Aggregation services
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
 
 // Add services
 builder.Services.AddControllers(options =>
@@ -187,3 +206,6 @@ app.MapHealthChecks("/health");
 
 app.MapControllers();
 app.Run();
+
+// Make the implicit Program class public for integration testing
+public partial class Program { }
