@@ -55,15 +55,7 @@ namespace MoodleInstanceBridge.Services.Moodle
                 url,
                 "core_course_get_courses_by_field",
                 cancellationToken);
-
-            //_logger.LogInformation(
-            //    "Found {Count} courses for {Field}={Value} in instance {Instance}",
-            //    response?.courses?.Count ?? 0,
-            //    field,
-            //    value,
-            //    config.ShortName
-            //);
-
+          
             return response ?? new MoodleCoursesResponseModel();
         }
 

@@ -116,13 +116,7 @@ namespace MoodleInstanceBridge.Services.Courses
                     field,
                     value,
                     cancellationToken
-                );
-
-                //_logger.LogInformation(
-                //    "Found {Count} courses in instance {Instance}",
-                //    coursesResponse.courses?.Count ?? 0,
-                //    config.ShortName
-                //);
+                );              
 
                 return (config.ShortName, coursesResponse, null);
             }
