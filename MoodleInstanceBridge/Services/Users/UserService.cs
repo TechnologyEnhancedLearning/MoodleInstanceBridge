@@ -1,4 +1,5 @@
 ﻿using LearningHub.Nhs.Models.Moodle;
+using LearningHub.Nhs.Models.Moodle.API;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
@@ -15,11 +16,13 @@ namespace MoodleInstanceBridge.Services.Users
     public class UserService : IUserService
     {
         private readonly MultiInstanceOrchestrator<List<MoodleUser>> _orchestrator;
+        private readonly MultiInstanceOrchestrator<MoodleCourseResponseModel> _courseOrchestrator;
         private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
             MultiInstanceOrchestrator<List<MoodleUser>> orchestrator,
+            MultiInstanceOrchestrator<MoodleCourseResponseModel> courseOrchestrator,
             IMoodleIntegrationService moodleIntegrationService,
             ILogger<UserService> logger)
         {
@@ -44,6 +47,21 @@ namespace MoodleInstanceBridge.Services.Users
                 cancellationToken: cancellationToken
             );
         }
+
+        // <inheritdoc />
+        //public async Task<UserCoursesResponse> GetUserCoursesAsync(
+        //    int userId,
+        //    CancellationToken cancellationToken = default)
+        //{
+        //    return await _courseOrchestrator.ExecuteAcrossInstancesAsync(
+        //        operationName: $"User courses lookup for user ID: {userId}",
+        //        instanceOperation: (config, ct) => GetUserCoursesFromInstanceAsync(config, userId, ct),
+        //        resultAggregator: AggregateUserCoursesResults,
+        //        createEmptyResponse: () => new UserCoursesResponse(),
+        //        cancellationToken: cancellationToken
+        //    );
+        //}
+
 
         /// <summary>
         /// Get user from a specific Moodle instance - domain logic only
@@ -112,7 +130,7 @@ namespace MoodleInstanceBridge.Services.Users
                     response.MoodleUserIds.Add(new MoodleUserIdResult
                     {
                         Instance = shortName,
-                        UserId = user.Id
+                        UserId = user
                     });
                 }
             }

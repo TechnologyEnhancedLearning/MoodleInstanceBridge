@@ -66,5 +66,62 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
                 queryParams["value"] = value;
             });
         }
+
+        /// <summary>
+        /// Builds URL for core_enrol_get_users_courses
+        /// </summary>
+        public static string BuildUserCoursesUrl(MoodleInstanceConfig config, int userId)
+        {
+            return BuildUrl(config, "core_enrol_get_users_courses", queryParams =>
+            {
+                queryParams["userid"] = userId.ToString();
+            });
+        }
+
+        /// <summary>
+        /// Builds URL for core_completion_get_course_completion_status
+        /// </summary>
+        public static string BuildCourseCompletionStatusUrl(MoodleInstanceConfig config, int userId, int courseId)
+        {
+            return BuildUrl(config, "core_completion_get_course_completion_status", queryParams =>
+            {
+                queryParams["userid"] = userId.ToString();
+                queryParams["courseid"] = courseId.ToString();
+            });
+        }
+
+        /// <summary>
+        /// Builds URL for core_user_get_users
+        /// </summary>
+        public static string BuildGetUsersUrl(MoodleInstanceConfig config, int userId)
+        {
+            return BuildUrl(config, "core_user_get_users", queryParams =>
+            {
+                queryParams["criteria[0][key]"] = "id";
+                queryParams["criteria[0][value]"] = userId.ToString();
+            });
+        }
+
+        /// <summary>
+        /// Builds URL for mylearningservice_get_recent_courses
+        /// </summary>
+        public static string BuildRecentCoursesUrl(MoodleInstanceConfig config, int userId)
+        {
+            return BuildUrl(config, "mylearningservice_get_recent_courses", queryParams =>
+            {
+                queryParams["userid"] = userId.ToString();
+            });
+        }
+
+        /// <summary>
+        /// Builds URL for mylearningservice_get_user_certificates
+        /// </summary>
+        public static string BuildUserCertificatesUrl(MoodleInstanceConfig config, int userId)
+        {
+            return BuildUrl(config, "mylearningservice_get_user_certificates", queryParams =>
+            {
+                queryParams["userid"] = userId.ToString();
+            });
+        }
     }
 }

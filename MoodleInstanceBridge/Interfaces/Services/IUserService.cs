@@ -16,5 +16,15 @@ namespace MoodleInstanceBridge.Interfaces.Services
         Task<MoodleUserIdsResponse> GetMoodleUserIdsByEmailAsync(
             string email,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get courses for a user across all enabled instances
+        /// </summary>
+        /// <param name="userId">Moodle user ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Response containing user courses from all instances and any errors</returns>
+        //Task<UserCoursesResponse> GetUserCoursesAsync(
+        //    int userId,
+        //    CancellationToken cancellationToken = default);
     }
 }
