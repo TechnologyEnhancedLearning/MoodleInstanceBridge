@@ -1,4 +1,4 @@
-using MoodleInstanceBridge.Models.Errors;
+using MoodleInstanceBridge.Contracts.Errors;
 
 namespace MoodleInstanceBridge.Services
 {
@@ -15,18 +15,37 @@ namespace MoodleInstanceBridge.Services
         /// <returns>InstanceError with appropriate error code and message</returns>
         public static InstanceError CreateFromException(string shortName, Exception ex)
         {
-            string errorCode = "INSTANCE_UNAVAILABLE";
-            string errorMessage = "Moodle instance could not be reached";
+            string errorCode;
+            string errorMessage;
 
-            if (ex.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+            switch (ex)
             {
-                errorCode = "TIMEOUT";
-                errorMessage = "Request to Moodle instance timed out";
-            }
-            else if (ex.Message.Contains("connect", StringComparison.OrdinalIgnoreCase))
-            {
-                errorCode = "CONNECTION_ERROR";
-                errorMessage = "Failed to connect to Moodle instance";
+                case System.Text.Json.JsonException jsonEx:
+                    errorCode = "INVALID_JSON_RESPONSE";
+                    errorMessage =
+                        "Moodle instance returned an unexpected response format. " +
+                        "The response could not be parsed.";
+                    break;
+
+                case TaskCanceledException:
+                    errorCode = "TIMEOUT";
+                    errorMessage = "Request to Moodle instance timed out";
+                    break;
+
+                case HttpRequestException httpEx when httpEx.InnerException is System.Net.Sockets.SocketException:
+                    errorCode = "CONNECTION_ERROR";
+                    errorMessage = "Failed to connect to Moodle instance";
+                    break;
+
+                case HttpRequestException:
+                    errorCode = "HTTP_ERROR";
+                    errorMessage = "HTTP error occurred while calling Moodle instance";
+                    break;
+
+                default:
+                    errorCode = "INSTANCE_UNAVAILABLE";
+                    errorMessage = "Moodle instance could not be reached";
+                    break;
             }
 
             return new InstanceError
