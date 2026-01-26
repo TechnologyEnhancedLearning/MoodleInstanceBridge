@@ -1,11 +1,16 @@
-﻿using LearningHub.Nhs.Models.Moodle;
+﻿using Azure;
+using LearningHub.Nhs.Models.Moodle;
 using LearningHub.Nhs.Models.Moodle.API;
+using MoodleInstanceBridge.Contracts.Aggregate;
+using MoodleInstanceBridge.Contracts.Errors;
+using MoodleInstanceBridge.Contracts.Payloads;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
-using MoodleInstanceBridge.Models.Errors;
+using MoodleInstanceBridge.Models.Courses;
 using MoodleInstanceBridge.Models.Users;
 using MoodleInstanceBridge.Services.Orchestration;
+using System.Security.Cryptography.X509Certificates;
 
 namespace MoodleInstanceBridge.Services.Users
 {
@@ -15,18 +20,31 @@ namespace MoodleInstanceBridge.Services.Users
     /// </summary>
     public class UserService : IUserService
     {
-        private readonly MultiInstanceOrchestrator<List<MoodleUser>> _orchestrator;
-        private readonly MultiInstanceOrchestrator<MoodleCourseResponseModel> _courseOrchestrator;
+        private readonly MultiInstanceOrchestrator<List<MoodleUser>> _allInstancesOrchestrator;
+        private readonly TargetedInstanceOrchestrator<MoodleCourseResponseModel> _courseOrchestrator;
+        private readonly TargetedInstanceOrchestrator<MoodleCourseCompletionModel> _completionOrchestrator;
+        private readonly TargetedInstanceOrchestrator<MoodleUserResponseModel> _userDataOrchestrator;
+        private readonly TargetedInstanceOrchestrator<MoodleEnrolledCourseResponseModel> _recentCoursesOrchestrator;
+        private readonly TargetedInstanceOrchestrator<MoodleUserCertificateResponseModel> _certificatesOrchestrator;
         private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
-            MultiInstanceOrchestrator<List<MoodleUser>> orchestrator,
-            MultiInstanceOrchestrator<MoodleCourseResponseModel> courseOrchestrator,
-            IMoodleIntegrationService moodleIntegrationService,
-            ILogger<UserService> logger)
+           MultiInstanceOrchestrator<List<MoodleUser>> allInstancesOrchestrator,
+           TargetedInstanceOrchestrator<MoodleCourseResponseModel> courseOrchestrator,
+           TargetedInstanceOrchestrator<MoodleCourseCompletionModel> completionOrchestrator,
+           TargetedInstanceOrchestrator<MoodleUserResponseModel> userDataOrchestrator,
+           TargetedInstanceOrchestrator<MoodleEnrolledCourseResponseModel> recentCoursesOrchestrator,
+           TargetedInstanceOrchestrator<MoodleUserCertificateResponseModel> certificatesOrchestrator,
+           IMoodleIntegrationService moodleIntegrationService,
+           ILogger<UserService> logger)
         {
-            _orchestrator = orchestrator;
+            _allInstancesOrchestrator = allInstancesOrchestrator;
+            _courseOrchestrator = courseOrchestrator;
+            _completionOrchestrator = completionOrchestrator;
+            _userDataOrchestrator = userDataOrchestrator;
+            _recentCoursesOrchestrator = recentCoursesOrchestrator;
+            _certificatesOrchestrator = certificatesOrchestrator;
             _moodleIntegrationService = moodleIntegrationService;
             _logger = logger;
         }
@@ -39,7 +57,7 @@ namespace MoodleInstanceBridge.Services.Users
             if (string.IsNullOrWhiteSpace(email))
                 throw new ArgumentException("Email cannot be null or whitespace.", nameof(email));
 
-            return await _orchestrator.ExecuteAcrossInstancesAsync(
+            return await _allInstancesOrchestrator.ExecuteAcrossInstancesAsync(
                 operationName: $"User lookup by email: {email}",
                 instanceOperation: (config, ct) => GetUserFromInstanceAsync(config, email, ct),
                 resultAggregator: AggregateUserResults,
@@ -48,20 +66,228 @@ namespace MoodleInstanceBridge.Services.Users
             );
         }
 
-        // <inheritdoc />
-        //public async Task<UserCoursesResponse> GetUserCoursesAsync(
-        //    int userId,
-        //    CancellationToken cancellationToken = default)
-        //{
-        //    return await _courseOrchestrator.ExecuteAcrossInstancesAsync(
-        //        operationName: $"User courses lookup for user ID: {userId}",
-        //        instanceOperation: (config, ct) => GetUserCoursesFromInstanceAsync(config, userId, ct),
-        //        resultAggregator: AggregateUserCoursesResults,
-        //        createEmptyResponse: () => new UserCoursesResponse(),
-        //        cancellationToken: cancellationToken
-        //    );
-        //}
+        /// <inheritdoc />
+        public async Task<AggregateResponse<UserCoursePayload>> GetUserCoursesAsync(
+            UserIdsRequest userIdsRequest,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "Starting user courses lookup for {Count} instance(s)",
+                userIdsRequest.UserIds.Count
+            );
 
+            if (userIdsRequest == null)
+                throw new ArgumentNullException(nameof(userIdsRequest));
+
+            if (userIdsRequest.UserIds == null)
+                throw new ArgumentNullException(nameof(userIdsRequest.UserIds));
+
+            if (_courseOrchestrator == null)
+                throw new InvalidOperationException("_courseOrchestrator is null");
+
+            if (_moodleIntegrationService == null)
+                throw new InvalidOperationException("_moodleIntegrationService is null");
+
+            _logger.LogInformation(
+                "Starting user courses lookup for {Count} instance(s)",
+                userIdsRequest.UserIds.Count
+            );
+
+            var response = new AggregateResponse<UserCoursePayload>();
+
+            Task<List<MoodleCourseResponseModel>> InstanceOperation(
+                MoodleInstanceConfig config,
+                int userId,
+                CancellationToken ct)
+            {
+                if (config == null)
+                    throw new ArgumentNullException(nameof(config));
+
+                return _moodleIntegrationService.GetUserCoursesAsync(config, userId, ct);
+            }
+
+            var results = await _courseOrchestrator.ExecuteAcrossTargetedInstancesAsync(
+                operationName: "User courses lookup",
+                instanceUserIds: userIdsRequest.UserIds,
+                instanceOperation: InstanceOperation,
+                cancellationToken: cancellationToken
+            );
+
+            if (results == null)
+                throw new InvalidOperationException("Orchestrator returned null results");
+
+            // Aggregate results
+            foreach (var (instanceName, result, error) in results)
+            {
+                if (error != null)
+                {
+                    response.Errors.Add(error);
+                }
+                else if (result != null)
+                {
+                    response.Results.Add(new AggregateResult<UserCoursePayload>
+                    {
+                        Instance = instanceName,
+                        Data = new UserCoursePayload
+                        {
+                            Courses = result
+                        }
+                    });
+                }
+            }
+            return response;
+        }
+
+        /// <inheritdoc />
+        public async Task<AggregateResponse<CourseCompletionStatusPayload>> GetCourseCompletionStatusAsync(
+            UserIdsRequest userIdsRequest,
+            int courseId,
+            CancellationToken cancellationToken = default)
+        {
+            var response = new AggregateResponse<CourseCompletionStatusPayload>();
+
+            var results = await _completionOrchestrator.ExecuteAcrossTargetedInstancesSingleAsync(
+                operationName: $"Course completion lookup for course {courseId}",
+                instanceUserIds: userIdsRequest.UserIds,
+                instanceOperation: (config, userId, ct) => _moodleIntegrationService.GetCourseCompletionStatusAsync(config, userId, courseId, ct),
+                cancellationToken: cancellationToken
+            );
+
+            // Aggregate results
+            foreach (var (instanceName, result, error) in results)
+            {
+                if (error != null)
+                {
+                    response.Errors.Add(error);
+                }
+                else if (result != null)
+                {
+                    response.Results.Add(new AggregateResult<CourseCompletionStatusPayload>
+                    {
+                        Instance = instanceName,
+                        Data = new CourseCompletionStatusPayload
+                        {
+                            Completions = result                            
+                        }
+                    });
+                }
+            }
+
+            return response;
+        }
+
+        /// <inheritdoc />
+        public async Task<AggregateResponse<UsersPayload>> GetUsersAsync(
+           UserIdsRequest userIdsRequest,
+           CancellationToken cancellationToken = default)
+        {
+            var response = new AggregateResponse<UsersPayload>();
+
+            var results = await _userDataOrchestrator.ExecuteAcrossTargetedInstancesSingleAsync (
+                operationName: "User data lookup",
+                instanceUserIds: userIdsRequest.UserIds,
+                instanceOperation: (config, userId, ct) => _moodleIntegrationService.GetUsersAsync(config, userId, ct),
+                cancellationToken: cancellationToken
+            );
+
+            // Aggregate results
+            foreach (var (instanceName, users, error) in results)
+            {
+                if (error != null)
+                {
+                    response.Errors.Add(error);
+                }
+                else if (users != null)
+                {
+                    response.Results.Add(new AggregateResult<UsersPayload>
+                    {
+                        Instance = instanceName,
+                        Data = new UsersPayload
+                        {
+                            Users = users
+                        }
+                    });
+                }
+            }
+
+            return response;
+        }
+
+        ///// <inheritdoc />
+        public async Task<AggregateResponse<RecentCoursesPayload>> GetRecentCoursesAsync(
+            UserIdsRequest userIdsRequest,
+            CancellationToken cancellationToken = default)
+        {
+            var response = new AggregateResponse<RecentCoursesPayload>();
+
+            var results = await _recentCoursesOrchestrator.ExecuteAcrossTargetedInstancesAsync(
+                operationName: "Recent courses lookup",
+                instanceUserIds: userIdsRequest.UserIds,
+                instanceOperation: (config, userId, ct) =>
+                    _moodleIntegrationService.GetRecentCoursesAsync(config, userId, ct),
+                cancellationToken: cancellationToken
+            );
+
+            foreach (var (instanceId, result, error) in results)
+            {
+                if (error != null)
+                {
+                    response.Errors.Add(error);
+                    continue;
+                }
+
+                if (result != null)
+                {
+                    response.Results.Add(new AggregateResult<RecentCoursesPayload>
+                    {
+                        Instance = instanceId,
+                        Data = new RecentCoursesPayload
+                        {
+                            Courses = result
+                        }
+                    });
+                }
+            }
+
+            return response;
+        }
+
+        /// <inheritdoc />
+        public async Task<AggregateResponse<UserCertificatesPayload>> GetUserCertificatesAsync(
+            UserIdsRequest userIdsRequest,
+            CancellationToken cancellationToken = default)
+        {
+            var response = new AggregateResponse<UserCertificatesPayload>();
+
+            var results = await _certificatesOrchestrator.ExecuteAcrossTargetedInstancesAsync(
+                operationName: "User certificates lookup",
+                instanceUserIds: userIdsRequest.UserIds,
+                instanceOperation: (config, userId, ct) => _moodleIntegrationService.GetUserCertificatesAsync(config, userId, ct),
+                cancellationToken: cancellationToken
+            );
+
+            // Aggregate results
+            foreach (var (instanceId, result, error) in results)
+            {
+                if (error != null)
+                {
+                    response.Errors.Add(error);
+                }
+                else if (result != null)
+                {
+                    response.Results.Add(new AggregateResult<UserCertificatesPayload>
+                    {
+                        Instance = instanceId,
+                        Data = new UserCertificatesPayload
+                        {
+                            Certificates = result
+                        }
+                    });                    
+                }
+            }
+
+            return response;
+        }
 
         /// <summary>
         /// Get user from a specific Moodle instance - domain logic only
@@ -116,9 +342,9 @@ namespace MoodleInstanceBridge.Services.Users
         /// </summary>
         private void AggregateUserResults(
             MoodleUserIdsResponse response,
-            IEnumerable<(string ShortName, List<MoodleUser>? Result, InstanceError? Error)> results)
+            IEnumerable<(string InstanceName, List<MoodleUser>? Result, InstanceError? Error)> results)
         {
-            foreach (var (shortName, users, error) in results)
+            foreach (var (instanceName, users, error) in results)
             {
                 if (error != null)
                 {
@@ -129,7 +355,7 @@ namespace MoodleInstanceBridge.Services.Users
                     var user = users.First(); // Should only be one user per email
                     response.MoodleUserIds.Add(new MoodleUserIdResult
                     {
-                        Instance = shortName,
+                        Instance = instanceName,
                         UserId = user
                     });
                 }

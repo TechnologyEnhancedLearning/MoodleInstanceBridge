@@ -47,7 +47,7 @@ namespace MoodleInstanceBridge.Services.Moodle
             return _courseService.GetCoursesByFieldAsync(config, field, value, cancellationToken);
         }
 
-        public Task<MoodleCourseResponseModel> GetUserCoursesAsync(
+        public Task<List<MoodleCourseResponseModel>> GetUserCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default)
@@ -72,7 +72,7 @@ namespace MoodleInstanceBridge.Services.Moodle
             return _userService.GetUsersAsync(config, userId, cancellationToken);
         }
 
-        public Task<MoodleEnrolledCourseResponseModel> GetRecentCoursesAsync(
+        public Task<List<MoodleEnrolledCourseResponseModel>> GetRecentCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default)
@@ -80,7 +80,7 @@ namespace MoodleInstanceBridge.Services.Moodle
             return _userService.GetRecentCoursesAsync(config, userId, cancellationToken);
         }
 
-        public Task<MoodleUserCertificateResponseModel> GetUserCertificatesAsync(
+        public Task<List<MoodleUserCertificateResponseModel>> GetUserCertificatesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default)

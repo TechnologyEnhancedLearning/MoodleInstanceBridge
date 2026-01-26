@@ -1,6 +1,6 @@
+using MoodleInstanceBridge.Contracts.Errors;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Models.Configuration;
-using MoodleInstanceBridge.Models.Errors;
 
 namespace MoodleInstanceBridge.Services.Orchestration
 {

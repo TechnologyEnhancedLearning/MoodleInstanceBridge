@@ -30,7 +30,7 @@ namespace MoodleInstanceBridge.Interfaces.Services
         /// <param name="userId">Moodle user ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of courses the user is enrolled in</returns>
-        Task<MoodleCourseResponseModel> GetUserCoursesAsync(
+        Task<List<MoodleCourseResponseModel>> GetUserCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default);
@@ -68,7 +68,7 @@ namespace MoodleInstanceBridge.Interfaces.Services
         /// <param name="userId">Moodle user ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Recent courses</returns>
-        Task<MoodleEnrolledCourseResponseModel> GetRecentCoursesAsync(
+        Task<List<MoodleEnrolledCourseResponseModel>> GetRecentCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default);
@@ -80,7 +80,7 @@ namespace MoodleInstanceBridge.Interfaces.Services
         /// <param name="userId">Moodle user ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>User certificates</returns>
-        Task<MoodleUserCertificateResponseModel> GetUserCertificatesAsync(
+        Task<List<MoodleUserCertificateResponseModel>> GetUserCertificatesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default);

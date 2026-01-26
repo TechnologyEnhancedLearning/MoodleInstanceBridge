@@ -27,6 +27,11 @@ namespace MoodleInstanceBridge.Services
                         "The response could not be parsed.";
                     break;
 
+                case Exception moodleEx when moodleEx.Message.StartsWith("Moodle error:", StringComparison.OrdinalIgnoreCase):
+                    errorCode = "MOODLE_ACCESS_ERROR";
+                    errorMessage = ex.Message.Replace("Moodle error:", "").Trim();
+                    break;
+
                 case TaskCanceledException:
                     errorCode = "TIMEOUT";
                     errorMessage = "Request to Moodle instance timed out";

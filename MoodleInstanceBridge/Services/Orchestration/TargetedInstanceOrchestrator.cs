@@ -1,6 +1,6 @@
+using MoodleInstanceBridge.Contracts.Errors;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Models.Configuration;
-using MoodleInstanceBridge.Models.Errors;
 
 namespace MoodleInstanceBridge.Services.Orchestration
 {
@@ -31,10 +31,10 @@ namespace MoodleInstanceBridge.Services.Orchestration
         /// <param name="instanceOperation">Function to execute on each instance</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Results from all instances with errors</returns>
-        public async Task<IEnumerable<(string InstanceId, TResult? Result, InstanceError? Error)>> ExecuteAcrossTargetedInstancesAsync(
+        public async Task<IEnumerable<(string InstanceId, List<TResult>? Result, InstanceError? Error)>> ExecuteAcrossTargetedInstancesAsync(
             string operationName,
             Dictionary<string, int> instanceUserIds,
-            Func<MoodleInstanceConfig, int, CancellationToken, Task<TResult>> instanceOperation,
+            Func<MoodleInstanceConfig, int, CancellationToken, Task<List<TResult>>> instanceOperation,
             CancellationToken cancellationToken = default)
         {
             _logger.LogInformation(
@@ -66,9 +66,84 @@ namespace MoodleInstanceBridge.Services.Orchestration
         }
 
         /// <summary>
+        /// Execute an operation across specific Moodle instances in parallel
+        /// </summary>
+        /// <param name="operationName">Name of the operation for logging</param>
+        /// <param name="instanceUserIds">Map of instance IDs to user IDs</param>
+        /// <param name="instanceOperation">Function to execute on each instance</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Results from all instances with errors</returns>
+        public async Task<IEnumerable<(string InstanceId, TResult? Result, InstanceError? Error)>> ExecuteAcrossTargetedInstancesSingleAsync(
+            string operationName,
+            Dictionary<string, int> instanceUserIds,
+            Func<MoodleInstanceConfig, int, CancellationToken, Task<TResult>> instanceOperation,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "Starting {OperationName} across {Count} targeted instance(s)",
+                operationName,
+                instanceUserIds.Count
+            );
+
+            // Create tasks for parallel execution across specified instances
+            var tasks = instanceUserIds
+                .Select(kvp => ExecuteForInstanceSingleAsync(
+                    kvp.Key,
+                    kvp.Value,
+                    instanceOperation,
+                    cancellationToken))
+                .ToList();
+
+            var results = await Task.WhenAll(tasks);
+
+            var successCount = results.Count(r => r.Error == null);
+            _logger.LogInformation(
+                "{OperationName} completed: {SuccessCount} successful, {ErrorCount} errors",
+                operationName,
+                successCount,
+                results.Length - successCount
+            );
+
+            return results;
+        }
+
+
+        /// <summary>
         /// Execute operation for a specific instance with consistent error handling and logging
         /// </summary>
-        private async Task<(string InstanceId, TResult? Result, InstanceError? Error)> ExecuteForInstanceAsync(
+        private async Task<(string InstanceId, List<TResult>? Result, InstanceError? Error)> ExecuteForInstanceAsync(
+            string instanceId,
+            int userId,
+            Func<MoodleInstanceConfig, int, CancellationToken, Task<List<TResult>>> operation,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var config = await GetConfigByShortNameAsync(instanceId, cancellationToken);
+                if (config == null)
+                {
+                    return (instanceId, default, new InstanceError
+                    {
+                        Instance = instanceId,
+                        Code = "InstanceNotFound",
+                        Message = $"Instance '{instanceId}' not found or not enabled"
+                    });
+                }
+
+                var result = await operation(config, userId, cancellationToken);
+                return (instanceId, result, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing operation for user {UserId} in instance {Instance}", userId, instanceId);
+                return (instanceId, default, InstanceErrorHelper.CreateFromException(instanceId, ex));
+            }
+        }
+
+        /// <summary>
+        /// Execute operation for a specific instance with consistent error handling and logging
+        /// </summary>
+        private async Task<(string InstanceId, TResult? Result, InstanceError? Error)> ExecuteForInstanceSingleAsync(
             string instanceId,
             int userId,
             Func<MoodleInstanceConfig, int, CancellationToken, Task<TResult>> operation,
@@ -96,6 +171,7 @@ namespace MoodleInstanceBridge.Services.Orchestration
                 return (instanceId, default, InstanceErrorHelper.CreateFromException(instanceId, ex));
             }
         }
+
 
         private async Task<MoodleInstanceConfig?> GetConfigByShortNameAsync(string shortName, CancellationToken cancellationToken)
         {

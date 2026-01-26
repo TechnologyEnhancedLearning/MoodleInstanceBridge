@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 using LearningHub.Nhs.Models.Moodle;
-using MoodleInstanceBridge.Models.Errors;
+using MoodleInstanceBridge.Contracts.Errors;
 
 namespace MoodleInstanceBridge.Models.Users
 {

@@ -47,7 +47,7 @@ namespace MoodleInstanceBridge.Services.Moodle
             return users ?? new List<MoodleUser>();
         }
 
-        public async Task<MoodleCourseResponseModel> GetUserCoursesAsync(
+        public async Task<List<MoodleCourseResponseModel>> GetUserCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default)
@@ -56,13 +56,13 @@ namespace MoodleInstanceBridge.Services.Moodle
                 throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
 
             var url = MoodleUrlBuilder.BuildUserCoursesUrl(config, userId);
-            var courses = await _webServiceClient.ExecuteRequestAsync<MoodleCourseResponseModel>(
+            var courses = await _webServiceClient.ExecuteRequestAsync<List<MoodleCourseResponseModel>>(
                 config,
                 url,
                 "core_enrol_get_users_courses",
                 cancellationToken);
 
-            return courses ?? new MoodleCourseResponseModel();
+            return courses ?? new List<MoodleCourseResponseModel>();
         }
 
         public async Task<MoodleCourseCompletionModel> GetCourseCompletionStatusAsync(
@@ -102,7 +102,7 @@ namespace MoodleInstanceBridge.Services.Moodle
                 throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
 
             var url = MoodleUrlBuilder.BuildGetUsersUrl(config, userId);
-            var userResponse = await _webServiceClient.ExecuteRequestAsync<MoodleUserResponseModel>(
+            var userResponse = await _webServiceClient.ExecuteRequestAsync< MoodleUserResponseModel>(
                 config,
                 url,
                 "core_user_get_users",
@@ -117,7 +117,7 @@ namespace MoodleInstanceBridge.Services.Moodle
             return userResponse ?? new MoodleUserResponseModel();
         }
 
-        public async Task<MoodleEnrolledCourseResponseModel> GetRecentCoursesAsync(
+        public async Task<List<MoodleEnrolledCourseResponseModel>> GetRecentCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default)
@@ -127,16 +127,16 @@ namespace MoodleInstanceBridge.Services.Moodle
 
             // Try mylearningservice_get_recent_courses first, fallback to core_course_get_recent_courses
             var url = MoodleUrlBuilder.BuildRecentCoursesUrl(config, userId);
-            var recentCourses = await _webServiceClient.ExecuteRequestAsync<MoodleEnrolledCourseResponseModel>(
+            var recentCourses = await _webServiceClient.ExecuteRequestAsync< List<MoodleEnrolledCourseResponseModel>>(
                 config,
                 url,
                 "mylearningservice_get_recent_courses",
                 cancellationToken);
 
-            return recentCourses ?? new MoodleEnrolledCourseResponseModel();
+            return recentCourses ?? new List<MoodleEnrolledCourseResponseModel>();
         }
 
-        public async Task<MoodleUserCertificateResponseModel> GetUserCertificatesAsync(
+        public async Task<List<MoodleUserCertificateResponseModel>> GetUserCertificatesAsync(
             MoodleInstanceConfig config,
             int userId,
             CancellationToken cancellationToken = default)
@@ -145,13 +145,13 @@ namespace MoodleInstanceBridge.Services.Moodle
                 throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
 
             var url = MoodleUrlBuilder.BuildUserCertificatesUrl(config, userId);
-            var certificates = await _webServiceClient.ExecuteRequestAsync<MoodleUserCertificateResponseModel>(
+            var certificates = await _webServiceClient.ExecuteRequestAsync<List<MoodleUserCertificateResponseModel>>(
                 config,
                 url,
                 "mylearningservice_get_user_certificates",
                 cancellationToken);            
 
-            return certificates ?? new MoodleUserCertificateResponseModel();
+            return certificates ?? new List<MoodleUserCertificateResponseModel>();
         }
 
         private static void ValidateInputs(string field, string value)
