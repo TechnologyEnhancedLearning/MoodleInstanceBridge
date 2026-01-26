@@ -21,21 +21,21 @@ namespace MoodleInstanceBridge.Services.Users
     public class UserService : IUserService
     {
         private readonly MultiInstanceOrchestrator<List<MoodleUser>> _allInstancesOrchestrator;
-        private readonly TargetedInstanceOrchestrator<MoodleCourseResponseModel> _courseOrchestrator;
-        private readonly TargetedInstanceOrchestrator<MoodleCourseCompletionModel> _completionOrchestrator;
-        private readonly TargetedInstanceOrchestrator<MoodleUserResponseModel> _userDataOrchestrator;
-        private readonly TargetedInstanceOrchestrator<MoodleEnrolledCourseResponseModel> _recentCoursesOrchestrator;
-        private readonly TargetedInstanceOrchestrator<MoodleUserCertificateResponseModel> _certificatesOrchestrator;
+        private readonly TargetedInstanceOrchestrator _courseOrchestrator;
+        private readonly TargetedInstanceOrchestrator _completionOrchestrator;
+        private readonly TargetedInstanceOrchestrator _userDataOrchestrator;
+        private readonly TargetedInstanceOrchestrator _recentCoursesOrchestrator;
+        private readonly TargetedInstanceOrchestrator _certificatesOrchestrator;
         private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
            MultiInstanceOrchestrator<List<MoodleUser>> allInstancesOrchestrator,
-           TargetedInstanceOrchestrator<MoodleCourseResponseModel> courseOrchestrator,
-           TargetedInstanceOrchestrator<MoodleCourseCompletionModel> completionOrchestrator,
-           TargetedInstanceOrchestrator<MoodleUserResponseModel> userDataOrchestrator,
-           TargetedInstanceOrchestrator<MoodleEnrolledCourseResponseModel> recentCoursesOrchestrator,
-           TargetedInstanceOrchestrator<MoodleUserCertificateResponseModel> certificatesOrchestrator,
+           TargetedInstanceOrchestrator courseOrchestrator,
+           TargetedInstanceOrchestrator completionOrchestrator,
+           TargetedInstanceOrchestrator userDataOrchestrator,
+           TargetedInstanceOrchestrator recentCoursesOrchestrator,
+           TargetedInstanceOrchestrator certificatesOrchestrator,
            IMoodleIntegrationService moodleIntegrationService,
            ILogger<UserService> logger)
         {
@@ -146,7 +146,7 @@ namespace MoodleInstanceBridge.Services.Users
         {
             var response = new AggregateResponse<CourseCompletionStatusPayload>();
 
-            var results = await _completionOrchestrator.ExecuteAcrossTargetedInstancesSingleAsync(
+            var results = await _completionOrchestrator.ExecuteAcrossTargetedInstancesAsync(
                 operationName: $"Course completion lookup for course {courseId}",
                 instanceUserIds: userIdsRequest.UserIds,
                 instanceOperation: (config, userId, ct) => _moodleIntegrationService.GetCourseCompletionStatusAsync(config, userId, courseId, ct),
@@ -183,7 +183,7 @@ namespace MoodleInstanceBridge.Services.Users
         {
             var response = new AggregateResponse<UsersPayload>();
 
-            var results = await _userDataOrchestrator.ExecuteAcrossTargetedInstancesSingleAsync (
+            var results = await _userDataOrchestrator.ExecuteAcrossTargetedInstancesAsync(
                 operationName: "User data lookup",
                 instanceUserIds: userIdsRequest.UserIds,
                 instanceOperation: (config, userId, ct) => _moodleIntegrationService.GetUsersAsync(config, userId, ct),

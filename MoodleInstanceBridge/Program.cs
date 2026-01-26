@@ -100,7 +100,7 @@ builder.Services.AddScoped<IMoodleIntegrationService, MoodleIntegrationService>(
 builder.Services.AddScoped(typeof(MoodleInstanceBridge.Services.Orchestration.MultiInstanceOrchestrator<>));
 
 // Targeted-instance orchestrators
-builder.Services.AddScoped(typeof(MoodleInstanceBridge.Services.Orchestration.TargetedInstanceOrchestrator<>));
+builder.Services.AddScoped(typeof(MoodleInstanceBridge.Services.Orchestration.TargetedInstanceOrchestrator));
 
 // Aggregation services
 builder.Services.AddScoped<IUserService, UserService>();
