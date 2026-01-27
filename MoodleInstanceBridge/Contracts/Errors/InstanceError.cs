@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace MoodleInstanceBridge.Models.Errors
+namespace MoodleInstanceBridge.Contracts.Errors
 {
     /// <summary>
     /// Error detail for a failed instance

@@ -1,10 +1,10 @@
 using LearningHub.Nhs.Models.Moodle;
 using LearningHub.Nhs.Models.Moodle.API;
+using MoodleInstanceBridge.Contracts.Errors;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
 using MoodleInstanceBridge.Models.Courses;
-using MoodleInstanceBridge.Models.Errors;
 using MoodleInstanceBridge.Services.Orchestration;
 
 namespace MoodleInstanceBridge.Services.Courses

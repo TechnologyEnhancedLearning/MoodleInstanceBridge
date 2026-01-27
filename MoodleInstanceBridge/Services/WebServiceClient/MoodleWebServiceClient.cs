@@ -45,6 +45,15 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
             }
         }
 
+        /// <summary>       
+        /// <typeparam name="T"></typeparam>
+        /// <param name="config"></param>
+        /// <param name="url"></param>
+        /// <param name="functionName">only used for logging and error reporting. </param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        /// <exception cref="MoodleUpstreamException"></exception>
+        /// </summary>
         public async Task<T> ExecuteRequestAsync<T>(
             MoodleInstanceConfig config,
             string url,

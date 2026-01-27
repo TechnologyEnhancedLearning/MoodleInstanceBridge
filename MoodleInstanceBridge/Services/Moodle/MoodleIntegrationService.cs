@@ -46,5 +46,46 @@ namespace MoodleInstanceBridge.Services.Moodle
         {
             return _courseService.GetCoursesByFieldAsync(config, field, value, cancellationToken);
         }
+
+        public Task<List<MoodleCourseResponseModel>> GetUserCoursesAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            return _userService.GetUserCoursesAsync(config, userId, cancellationToken);
+        }
+
+        public Task<MoodleCourseCompletionModel> GetCourseCompletionStatusAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            int courseId,
+            CancellationToken cancellationToken = default)
+        {
+            return _userService.GetCourseCompletionStatusAsync(config, userId, courseId, cancellationToken);
+        }
+
+        public Task<MoodleUserResponseModel> GetUsersAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            return _userService.GetUsersAsync(config, userId, cancellationToken);
+        }
+
+        public Task<List<MoodleEnrolledCourseResponseModel>> GetRecentCoursesAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            return _userService.GetRecentCoursesAsync(config, userId, cancellationToken);
+        }
+
+        public Task<List<MoodleUserCertificateResponseModel>> GetUserCertificatesAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            return _userService.GetUserCertificatesAsync(config, userId, cancellationToken);
+        }
     }
 }
