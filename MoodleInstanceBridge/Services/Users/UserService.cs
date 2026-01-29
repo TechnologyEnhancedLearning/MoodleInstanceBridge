@@ -113,37 +113,7 @@ namespace MoodleInstanceBridge.Services.Users
                 cancellationToken: cancellationToken
             );
 
-            if (results == null)
-                throw new InvalidOperationException("Orchestrator returned null results");
-
-            // Aggregate results - each result contains either data or an error
-            foreach (var (instanceName, result, error) in results)
-            {
-                if (error != null)
-                {
-                    // Add error result
-                    response.Results.Add(new AggregateResult<UserCoursePayload>
-                    {
-                        Instance = instanceName,
-                        Data = null,
-                        Error = error
-                    });
-                }
-                else if (result != null)
-                {
-                    // Add success result
-                    response.Results.Add(new AggregateResult<UserCoursePayload>
-                    {
-                        Instance = instanceName,
-                        Data = new UserCoursePayload
-                        {
-                            Courses = result
-                        },
-                        Error = null
-                    });
-                }
-            }
-            return response;
+            return AggregateResults(results, courses => new UserCoursePayload { Courses = courses });
         }
 
         /// <inheritdoc />
@@ -161,35 +131,7 @@ namespace MoodleInstanceBridge.Services.Users
                 cancellationToken: cancellationToken
             );
 
-            // Aggregate results - each result contains either data or an error
-            foreach (var (instanceName, result, error) in results)
-            {
-                if (error != null)
-                {
-                    // Add error result
-                    response.Results.Add(new AggregateResult<CourseCompletionStatusPayload>
-                    {
-                        Instance = instanceName,
-                        Data = null,
-                        Error = error
-                    });
-                }
-                else if (result != null)
-                {
-                    // Add success result
-                    response.Results.Add(new AggregateResult<CourseCompletionStatusPayload>
-                    {
-                        Instance = instanceName,
-                        Data = new CourseCompletionStatusPayload
-                        {
-                            Completions = result
-                        },
-                        Error = null
-                    });
-                }
-            }
-
-            return response;
+            return AggregateResults(results, completions => new CourseCompletionStatusPayload { Completions = completions });
         }
 
         /// <inheritdoc />
@@ -206,35 +148,7 @@ namespace MoodleInstanceBridge.Services.Users
                 cancellationToken: cancellationToken
             );
 
-            // Aggregate results - each result contains either data or an error
-            foreach (var (instanceName, users, error) in results)
-            {
-                if (error != null)
-                {
-                    // Add error result
-                    response.Results.Add(new AggregateResult<UsersPayload>
-                    {
-                        Instance = instanceName,
-                        Data = null,
-                        Error = error
-                    });
-                }
-                else if (users != null)
-                {
-                    // Add success result
-                    response.Results.Add(new AggregateResult<UsersPayload>
-                    {
-                        Instance = instanceName,
-                        Data = new UsersPayload
-                        {
-                            Users = users
-                        },
-                        Error = null
-                    });
-                }
-            }
-
-            return response;
+            return AggregateResults(results, users => new UsersPayload { Users = users });
         }
 
         ///// <inheritdoc />
@@ -252,35 +166,8 @@ namespace MoodleInstanceBridge.Services.Users
                 cancellationToken: cancellationToken
             );
 
-            // Aggregate results - each result contains either data or an error
-            foreach (var (instanceId, result, error) in results)
-            {
-                if (error != null)
-                {
-                    // Add error result
-                    response.Results.Add(new AggregateResult<RecentCoursesPayload>
-                    {
-                        Instance = instanceId,
-                        Data = null,
-                        Error = error
-                    });
-                }
-                else if (result != null)
-                {
-                    // Add success result
-                    response.Results.Add(new AggregateResult<RecentCoursesPayload>
-                    {
-                        Instance = instanceId,
-                        Data = new RecentCoursesPayload
-                        {
-                            Courses = result
-                        },
-                        Error = null
-                    });
-                }
-            }
+            return AggregateResults(results, courses => new RecentCoursesPayload { Courses = courses });
 
-            return response;
         }
 
         /// <inheritdoc />
@@ -297,35 +184,7 @@ namespace MoodleInstanceBridge.Services.Users
                 cancellationToken: cancellationToken
             );
 
-            // Aggregate results - each result contains either data or an error
-            foreach (var (instanceId, result, error) in results)
-            {
-                if (error != null)
-                {
-                    // Add error result
-                    response.Results.Add(new AggregateResult<UserCertificatesPayload>
-                    {
-                        Instance = instanceId,
-                        Data = null,
-                        Error = error
-                    });
-                }
-                else if (result != null)
-                {
-                    // Add success result
-                    response.Results.Add(new AggregateResult<UserCertificatesPayload>
-                    {
-                        Instance = instanceId,
-                        Data = new UserCertificatesPayload
-                        {
-                            Certificates = result
-                        },
-                        Error = null
-                    });
-                }
-            }
-
-            return response;
+            return AggregateResults(results, certificates => new UserCertificatesPayload { Certificates = certificates });
         }
 
         /// <summary>
@@ -399,6 +258,47 @@ namespace MoodleInstanceBridge.Services.Users
                     });
                 }
             }
+        }
+
+        /// <summary>
+        /// Generic helper to aggregate orchestrator results into an AggregateResponse
+        /// </summary>
+        /// <typeparam name="TPayload">The payload type for the response</typeparam>
+        /// <typeparam name="TData">The data type returned from each instance</typeparam>
+        /// <param name="results">Results from the orchestrator</param>
+        /// <param name="payloadFactory">Function to create payload from data</param>
+        /// <returns>Aggregated response with results from all instances</returns>
+        private AggregateResponse<TPayload> AggregateResults<TPayload, TData>(
+            IEnumerable<(string InstanceId, TData? Result, InstanceError? Error)> results,
+            Func<TData, TPayload> payloadFactory)
+            where TPayload : class
+            where TData : class
+        {
+            var response = new AggregateResponse<TPayload>();
+
+            foreach (var (instanceName, result, error) in results)
+            {
+                if (error != null)
+                {
+                    response.Results.Add(new AggregateResult<TPayload>
+                    {
+                        Instance = instanceName,
+                        Data = null,
+                        Error = error
+                    });
+                }
+                else if (result != null)
+                {
+                    response.Results.Add(new AggregateResult<TPayload>
+                    {
+                        Instance = instanceName,
+                        Data = payloadFactory(result),
+                        Error = null
+                    });
+                }
+            }
+
+            return response;
         }
     }
 }
