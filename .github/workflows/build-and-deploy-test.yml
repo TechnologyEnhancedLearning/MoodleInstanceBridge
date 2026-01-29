@@ -1,0 +1,69 @@
+name: Build & Deploy to Azure App Service
+
+on:
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: moodle-bridge-api-test
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Add Azure artifact
+      run: |
+         dotnet nuget add source 'https://pkgs.dev.azure.com/e-LfH/_packaging/LearningHubFeed/nuget/v3/index.json' --name 'LearningHubFeed'  --username 'kevin.whittaker' --password ${{ secrets.AZURE_DEVOPS_PAT }} --store-password-in-clear-text
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Publish
+      run: dotnet publish MoodleInstanceBridge/MoodleInstanceBridge.csproj -c Release --framework net8.0 --self-contained false -o publish_output
+
+    - name: Create ZIP package
+      run: |
+        cd publish_output
+        zip -r ../app.zip .
+
+    - name: Upload Artifact (ZIP)
+      uses: actions/upload-artifact@v4
+      with:
+        name: app
+        path: app.zip
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+    - name: Download Artifact (ZIP)
+      uses: actions/download-artifact@v4
+      with:
+        name: app
+        path: .
+
+    - name: Login to Azure
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy to Azure Web App (ZIP Deploy)
+      uses: azure/webapps-deploy@v3
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        package: app.zip
