@@ -31,7 +31,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore
 
     - name: Publish
-      run: dotnet publish src/MoodleInstanceBridge/MoodleInstanceBridge.csproj -c Release --framework net8.0 --self-contained false -o publish_output
+      run: dotnet publish MoodleInstanceBridge/MoodleInstanceBridge.csproj -c Release --framework net8.0 --self-contained false -o publish_output
 
     - name: Create ZIP package
       run: |
