@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
-using MoodleInstanceBridge.Models.Errors;
+using LearningHub.Nhs.Models.Moodle;
+using MoodleInstanceBridge.Contracts.Errors;
 
 namespace MoodleInstanceBridge.Models.Users
 {
@@ -36,6 +37,6 @@ namespace MoodleInstanceBridge.Models.Users
         /// Moodle user ID, or null if user does not exist in this instance
         /// </summary>
         [JsonPropertyName("user_id")]
-        public int? UserId { get; set; }
+        public MoodleUser? UserId { get; set; }
     }
 }

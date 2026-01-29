@@ -54,8 +54,8 @@ namespace MoodleInstanceBridge.Services.Moodle
                 config,
                 url,
                 "core_course_get_courses_by_field",
-                cancellationToken);
-          
+                cancellationToken);          
+
             return response ?? new MoodleCoursesResponseModel();
         }
 
