@@ -1,5 +1,6 @@
 using Azure.Identity;
 using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
@@ -73,6 +74,7 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
 
 // Register Telemetry Initializer
 builder.Services.AddSingleton<ITelemetryInitializer, InstanceTelemetryInitializer>();
+builder.Services.AddSingleton<ISecurityTelemetryService, SecurityTelemetryService>();
 
 // Register configuration services
 builder.Services.AddSingleton<IInstanceConfigurationService, InstanceConfigurationService>();
@@ -105,6 +107,35 @@ builder.Services.AddScoped(typeof(MoodleInstanceBridge.Services.Orchestration.Ta
 // Aggregation services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
+
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = builder.Configuration["LearningHubAuthServiceConfig:Authority"];
+        options.Audience = "learninghubapi";
+        options.RequireHttpsMetadata = false;
+
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                var telemetry = context.HttpContext.RequestServices
+                    .GetRequiredService<ISecurityTelemetryService>();
+
+                telemetry.TrackJwtFailure(
+                    context.Exception.Message,
+                    context.HttpContext.Request.Path);
+
+                return Task.CompletedTask;
+            }
+        };
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 // Add services
 builder.Services.AddControllers(options =>
@@ -194,6 +225,18 @@ app.UseSwaggerUI(options =>
             description.GroupName.ToUpperInvariant()
         );
     }
+    var authConfig = builder.Configuration.GetSection("LearningHubAuthServiceConfig");
+
+    options.OAuthClientId(authConfig["ClientId"]);
+    options.OAuthClientSecret(authConfig["ClientSecret"]);
+
+    // IMPORTANT: Must match IdentityServer client config
+    options.OAuthUsePkce();
+    options.OAuthScopeSeparator(" ");
+    options.OAuthScopes("learninghubapi");
+
+    // OPTIONAL but recommended
+    options.OAuthAppName("Moodle Instance Bridge API");
 });
 
 app.UseHttpsRedirection();
@@ -201,6 +244,7 @@ if (appConfigEnabled)
 {
     app.UseAzureAppConfiguration();
 }
+app.UseAuthentication();
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
 
