@@ -22,6 +22,7 @@ namespace MoodleInstanceBridge.Middleware
             if (context.Request.Path.StartsWithSegments("/swagger") ||
                 context.Request.Path.StartsWithSegments("/health") ||
                 context.Request.Path.StartsWithSegments("/api/v1/health") ||
+                context.Request.Path.StartsWithSegments("/api/v2/health") ||
                 context.Request.Path.StartsWithSegments("/swagger/oauth2-redirect"))
             {
                 await _next(context);
