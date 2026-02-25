@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Primitives;
 using MoodleInstanceBridge.Telemetry;
+using System.IO;
 using System.Net;
 
 namespace MoodleInstanceBridge.Middleware
@@ -19,7 +20,9 @@ namespace MoodleInstanceBridge.Middleware
         {
             // Allow swagger & health
             if (context.Request.Path.StartsWithSegments("/swagger") ||
-                context.Request.Path.StartsWithSegments("/health"))
+                context.Request.Path.StartsWithSegments("/health") ||
+                context.Request.Path.StartsWithSegments("/api/v1/health") ||
+                context.Request.Path.StartsWithSegments("/swagger/oauth2-redirect"))
             {
                 await _next(context);
                 return;
