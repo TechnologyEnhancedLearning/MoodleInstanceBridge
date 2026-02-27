@@ -105,22 +105,26 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
         /// <summary>
         /// Builds URL for mylearningservice_get_recent_courses
         /// </summary>
-        public static string BuildRecentCoursesUrl(MoodleInstanceConfig config, int userId)
+        public static string BuildRecentCoursesUrl(MoodleInstanceConfig config, int userId, string months, string statusfilter, string search)
         {
             return BuildUrl(config, "mylearningservice_get_recent_courses", queryParams =>
             {
                 queryParams["userid"] = userId.ToString();
+                //queryParams["months"] = months?.ToString();
+                queryParams["statusfilter"] = statusfilter?.ToString();
+                queryParams["search"] = search?.ToString();
             });
         }
 
         /// <summary>
         /// Builds URL for mylearningservice_get_user_certificates
         /// </summary>
-        public static string BuildUserCertificatesUrl(MoodleInstanceConfig config, int userId)
+        public static string BuildUserCertificatesUrl(MoodleInstanceConfig config, int userId, string filterText)
         {
             return BuildUrl(config, "mylearningservice_get_user_certificates", queryParams =>
             {
                 queryParams["userid"] = userId.ToString();
+                queryParams["searchterm"] = filterText?.ToString();
             });
         }
     }

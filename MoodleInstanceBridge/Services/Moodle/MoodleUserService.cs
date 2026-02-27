@@ -120,13 +120,16 @@ namespace MoodleInstanceBridge.Services.Moodle
         public async Task<List<MoodleEnrolledCourseResponseModel>> GetRecentCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
+            string months,
+            string statusfilter,
+            string search,
             CancellationToken cancellationToken = default)
         {
             if (userId <= 0)
                 throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
 
             // Try mylearningservice_get_recent_courses first, fallback to core_course_get_recent_courses
-            var url = MoodleUrlBuilder.BuildRecentCoursesUrl(config, userId);
+            var url = MoodleUrlBuilder.BuildRecentCoursesUrl(config, userId, months,statusfilter,search);
             var recentCourses = await _webServiceClient.ExecuteRequestAsync< List<MoodleEnrolledCourseResponseModel>>(
                 config,
                 url,
@@ -139,12 +142,13 @@ namespace MoodleInstanceBridge.Services.Moodle
         public async Task<List<MoodleUserCertificateResponseModel>> GetUserCertificatesAsync(
             MoodleInstanceConfig config,
             int userId,
+            string filterText,
             CancellationToken cancellationToken = default)
         {
             if (userId <= 0)
                 throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
 
-            var url = MoodleUrlBuilder.BuildUserCertificatesUrl(config, userId);
+            var url = MoodleUrlBuilder.BuildUserCertificatesUrl(config, userId, filterText);
             var certificates = await _webServiceClient.ExecuteRequestAsync<List<MoodleUserCertificateResponseModel>>(
                 config,
                 url,

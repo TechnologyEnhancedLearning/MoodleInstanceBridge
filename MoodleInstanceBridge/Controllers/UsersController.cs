@@ -202,6 +202,9 @@ namespace MoodleInstanceBridge.Controllers
         /// Get recent courses for users across specified Moodle instances
         /// </summary>
         /// <param name="request">Request containing user IDs per instance</param>
+        /// <param name="months">Number of months to look back for recent courses (optional)</param>
+        /// <param name="statusfilter">Filter recent courses by completion status (optional, e.g. "completed", "in-progress")</param>
+        /// <param name="search">Search term to filter recent courses by name (optional)</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Recent courses from specified instances</returns>
         /// <remarks>
@@ -217,7 +220,10 @@ namespace MoodleInstanceBridge.Controllers
         [StandardErrorResponses]
         public async Task<ActionResult<AggregateResponse<RecentCoursesPayload>>> GetRecentCourses(
             [FromBody] UserIdsRequest request,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+             [FromQuery] string? months = null,
+             [FromQuery] string? statusfilter = null,
+             [FromQuery] string? search = null)
         {
             RequestValidationHelper.ValidateUserIdsRequest(request);
 
@@ -226,7 +232,7 @@ namespace MoodleInstanceBridge.Controllers
                 request.UserIds.Count
             );
 
-            var response = await _userService.GetRecentCoursesAsync(request, cancellationToken);
+            var response = await _userService.GetRecentCoursesAsync(request, months, statusfilter, search,cancellationToken);
             return Ok(response);
         }
 
@@ -234,6 +240,7 @@ namespace MoodleInstanceBridge.Controllers
         /// Get user certificates across specified Moodle instances
         /// </summary>
         /// <param name="request">Request containing user IDs per instance</param>
+        /// <param name="filterText">Optional filter text to search within certificate titles or descriptions</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>User certificates from specified instances</returns>
         /// <remarks>
@@ -249,7 +256,8 @@ namespace MoodleInstanceBridge.Controllers
         [StandardErrorResponses]
         public async Task<ActionResult<AggregateResponse<UserCertificatesPayload>>> GetCertificates(
             [FromBody] UserIdsRequest request,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            [FromQuery] string? filterText = null)
         {
             RequestValidationHelper.ValidateUserIdsRequest(request);
 
@@ -258,7 +266,7 @@ namespace MoodleInstanceBridge.Controllers
                 request.UserIds.Count
             );
 
-            var response = await _userService.GetUserCertificatesAsync(request, cancellationToken);
+            var response = await _userService.GetUserCertificatesAsync(request, filterText, cancellationToken);
             return Ok(response);
         }
     }

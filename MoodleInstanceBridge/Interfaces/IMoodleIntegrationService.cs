@@ -90,11 +90,17 @@ namespace MoodleInstanceBridge.Interfaces
         /// </summary>
         /// <param name="config">Moodle instance configuration</param>
         /// <param name="userId">Moodle user ID</param>
+        /// <param name="months">Number of months to look back for recent courses</param>
+        /// <param name="statusfilter">Filter courses by status (e.g., "inprogress", "completed")</param>
+        /// <param name="search">Optional search text to filter courses by name</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Recent courses</returns>
         Task<List<MoodleEnrolledCourseResponseModel>> GetRecentCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
+            string months,
+            string statusfilter,
+            string search,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -102,11 +108,13 @@ namespace MoodleInstanceBridge.Interfaces
         /// </summary>
         /// <param name="config">Moodle instance configuration</param>
         /// <param name="userId">Moodle user ID</param>
+        /// <param name="filterText">Optional filter text to search certificates by name</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>User certificates</returns>
         Task<List<MoodleUserCertificateResponseModel>> GetUserCertificatesAsync(
             MoodleInstanceConfig config,
             int userId,
+            string filterText,
             CancellationToken cancellationToken = default);
     }
 }

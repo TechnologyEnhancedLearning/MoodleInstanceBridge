@@ -56,20 +56,28 @@ namespace MoodleInstanceBridge.Interfaces.Services
         /// Get recent courses across all enabled instances
         /// </summary>
         /// <param name="userIdsRequest">Map of instance IDs to user IDs</param>
+        /// <param name="months">Number of months to look back for recent courses</param>
+        /// <param name="statusfilter">Optional filter for course status (e.g. "inprogress", "completed")</param>
+        /// <param name="search">Optional search text to filter courses by name</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Response containing recent courses from all instances and any errors</returns>
         Task<AggregateResponse<RecentCoursesPayload>> GetRecentCoursesAsync(
             UserIdsRequest userIdsRequest,
+            string months,
+            string statusfilter,
+            string search,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get user certificates across all enabled instances
         /// </summary>
         /// <param name="userIdsRequest">Map of instance IDs to user IDs</param>
+        /// <param name="filterText">Optional filter text to search for in certificate names</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Response containing user certificates from all instances and any errors</returns>
         Task<AggregateResponse<UserCertificatesPayload>> GetUserCertificatesAsync(
             UserIdsRequest userIdsRequest,
+            string filterText,
             CancellationToken cancellationToken = default);
     }
 }
