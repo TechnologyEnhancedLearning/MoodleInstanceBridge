@@ -1,4 +1,5 @@
 ﻿using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.Extensions.Logging;
 namespace MoodleInstanceBridge.Telemetry
 {
@@ -57,6 +58,21 @@ namespace MoodleInstanceBridge.Telemetry
 
             _logger.LogWarning("JWT authentication failed on {Path}: {Error}", path, error);
             _telemetryClient.TrackEvent("JWT_Authentication_Failed", properties);
+        }
+        public void TrackApiKeyFailure(string path)
+        {
+            var telemetry = new EventTelemetry("Authentication.ApiKey.Failed");
+            telemetry.Properties["Path"] = path;
+
+            _telemetryClient.TrackEvent(telemetry);
+        }
+
+        public void TrackApiKeySuccess(string path)
+        {
+            var telemetry = new EventTelemetry("Authentication.ApiKey.Success");
+            telemetry.Properties["Path"] = path;
+
+            _telemetryClient.TrackEvent(telemetry);
         }
     }
 }
