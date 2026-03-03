@@ -97,7 +97,7 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
         {
             return BuildUrl(config, "core_user_get_users", queryParams =>
             {
-                queryParams["criteria[0][key]"] = "id";
+                queryParams["criteria[0][key]"] = "username";
                 queryParams["criteria[0][value]"] = userId.ToString();
             });
         }
@@ -110,7 +110,7 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
             return BuildUrl(config, "mylearningservice_get_recent_courses", queryParams =>
             {
                 queryParams["userid"] = userId.ToString();
-                //queryParams["months"] = months?.ToString();
+                queryParams["months"] = months?.ToString();
                 queryParams["statusfilter"] = statusfilter?.ToString();
                 queryParams["search"] = search?.ToString();
             });
