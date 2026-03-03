@@ -75,17 +75,21 @@ namespace MoodleInstanceBridge.Services.Moodle
         public Task<List<MoodleEnrolledCourseResponseModel>> GetRecentCoursesAsync(
             MoodleInstanceConfig config,
             int userId,
+            string months,
+            string statusfilter,
+            string search,
             CancellationToken cancellationToken = default)
         {
-            return _userService.GetRecentCoursesAsync(config, userId, cancellationToken);
+            return _userService.GetRecentCoursesAsync(config, userId, months,statusfilter,search, cancellationToken);
         }
 
         public Task<List<MoodleUserCertificateResponseModel>> GetUserCertificatesAsync(
             MoodleInstanceConfig config,
             int userId,
+            string filterText,
             CancellationToken cancellationToken = default)
         {
-            return _userService.GetUserCertificatesAsync(config, userId, cancellationToken);
+            return _userService.GetUserCertificatesAsync(config, userId, filterText, cancellationToken);
         }
     }
 }

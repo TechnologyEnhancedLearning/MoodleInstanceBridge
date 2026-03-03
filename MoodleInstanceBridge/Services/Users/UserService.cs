@@ -154,6 +154,9 @@ namespace MoodleInstanceBridge.Services.Users
         ///// <inheritdoc />
         public async Task<AggregateResponse<RecentCoursesPayload>> GetRecentCoursesAsync(
             UserIdsRequest userIdsRequest,
+            string months,
+            string statusfilter,
+            string search,
             CancellationToken cancellationToken = default)
         {
             var response = new AggregateResponse<RecentCoursesPayload>();
@@ -162,7 +165,7 @@ namespace MoodleInstanceBridge.Services.Users
                 operationName: "Recent courses lookup",
                 instanceUserIds: userIdsRequest.UserIds,
                 instanceOperation: (config, userId, ct) =>
-                    _moodleIntegrationService.GetRecentCoursesAsync(config, userId, ct),
+                    _moodleIntegrationService.GetRecentCoursesAsync(config, userId,months,statusfilter,search, ct),
                 cancellationToken: cancellationToken
             );
 
@@ -173,6 +176,7 @@ namespace MoodleInstanceBridge.Services.Users
         /// <inheritdoc />
         public async Task<AggregateResponse<UserCertificatesPayload>> GetUserCertificatesAsync(
             UserIdsRequest userIdsRequest,
+            string filterText,
             CancellationToken cancellationToken = default)
         {
             var response = new AggregateResponse<UserCertificatesPayload>();
@@ -180,7 +184,7 @@ namespace MoodleInstanceBridge.Services.Users
             var results = await _certificatesOrchestrator.ExecuteAcrossTargetedInstancesAsync(
                 operationName: "User certificates lookup",
                 instanceUserIds: userIdsRequest.UserIds,
-                instanceOperation: (config, userId, ct) => _moodleIntegrationService.GetUserCertificatesAsync(config, userId, ct),
+                instanceOperation: (config, userId, ct) => _moodleIntegrationService.GetUserCertificatesAsync(config, userId, filterText, ct),
                 cancellationToken: cancellationToken
             );
 
