@@ -131,7 +131,7 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer("Bearer", options =>
 {
     options.Authority = builder.Configuration["LearningHubAuthServiceConfig:Authority"];
-    options.Audience = "learninghubapi";
+    options.Audience = builder.Configuration["LearningHubAuthServiceConfig:Audience"];
     options.RequireHttpsMetadata = false;
 
     options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
@@ -252,7 +252,14 @@ app.UseSwaggerUI(options =>
     // IMPORTANT: Must match IdentityServer client config
     options.OAuthUsePkce();
     options.OAuthScopeSeparator(" ");
-    options.OAuthScopes("learninghubapi");
+    var scopes = authConfig
+        .GetSection("SwaggerScopes")
+        .Get<string[]>();
+
+    if (scopes != null && scopes.Length > 0)
+    {
+        options.OAuthScopes(scopes);
+    }
 
     // OPTIONAL but recommended
     options.OAuthAppName("Moodle Instance Bridge API");
