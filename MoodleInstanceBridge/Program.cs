@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.EntityFrameworkCore;
+using MoodleInstanceBridge.Authentication;
 using MoodleInstanceBridge.Data;
 using MoodleInstanceBridge.HealthChecks;
 using MoodleInstanceBridge.Interfaces;
@@ -108,28 +109,46 @@ builder.Services.AddScoped(typeof(MoodleInstanceBridge.Services.Orchestration.Ta
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = "ApiKeyOrBearer";
+    options.DefaultChallengeScheme = "ApiKeyOrBearer";
+})
+.AddPolicyScheme("ApiKeyOrBearer", "API Key or Bearer", options =>
+{
+    options.ForwardDefaultSelector = context =>
     {
-        options.Authority = builder.Configuration["LearningHubAuthServiceConfig:Authority"];
-        options.Audience = "learninghubapi";
-        options.RequireHttpsMetadata = false;
-
-        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        if (context.Request.Headers.ContainsKey("X-API-KEY"))
         {
-            OnAuthenticationFailed = context =>
-            {
-                var telemetry = context.HttpContext.RequestServices
-                    .GetRequiredService<ISecurityTelemetryService>();
+            return "ApiKey";
+        }
 
-                telemetry.TrackJwtFailure(
-                    context.Exception.Message,
-                    context.HttpContext.Request.Path);
+        return "Bearer";
+    };
+})
+.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+    "ApiKey", options => { }) 
+.AddJwtBearer("Bearer", options =>
+{
+    options.Authority = builder.Configuration["LearningHubAuthServiceConfig:Authority"];
+    options.Audience = builder.Configuration["LearningHubAuthServiceConfig:Audience"];
+    options.RequireHttpsMetadata = false;
 
-                return Task.CompletedTask;
-            }
-        };
-    });
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            var telemetry = context.HttpContext.RequestServices
+                .GetRequiredService<ISecurityTelemetryService>();
+
+            telemetry.TrackJwtFailure(
+                context.Exception.Message,
+                context.HttpContext.Request.Path);
+
+            return Task.CompletedTask;
+        }
+    };
+});
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -233,7 +252,14 @@ app.UseSwaggerUI(options =>
     // IMPORTANT: Must match IdentityServer client config
     options.OAuthUsePkce();
     options.OAuthScopeSeparator(" ");
-    options.OAuthScopes("learninghubapi");
+    var scopes = authConfig
+        .GetSection("SwaggerScopes")
+        .Get<string[]>();
+
+    if (scopes != null && scopes.Length > 0)
+    {
+        options.OAuthScopes(scopes);
+    }
 
     // OPTIONAL but recommended
     options.OAuthAppName("Moodle Instance Bridge API");
@@ -245,7 +271,7 @@ if (appConfigEnabled)
     app.UseAzureAppConfiguration();
 }
 app.UseAuthentication();
-app.UseMiddleware<ApiKeyMiddleware>();
+//app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
 
 // Map Health Check endpoint
