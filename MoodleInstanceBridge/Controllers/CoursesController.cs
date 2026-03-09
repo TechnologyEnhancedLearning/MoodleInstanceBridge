@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using MoodleInstanceBridge.Attributes;
+using MoodleInstanceBridge.Contracts.Aggregate;
+using MoodleInstanceBridge.Contracts.Payloads;
 using MoodleInstanceBridge.Interfaces.Services;
-using MoodleInstanceBridge.Models.Courses;
 using MoodleInstanceBridge.Models.Errors;
 
 namespace MoodleInstanceBridge.Controllers
@@ -32,13 +33,13 @@ namespace MoodleInstanceBridge.Controllers
         /// <returns>Categories from all instances with source instance information</returns>
         /// <remarks>
         /// This endpoint queries all enabled Moodle instances and returns categories from each.
-        /// Each category includes sourceInstance to identify which Moodle instance it came from.
-        /// Partial failures are included in the errors array.
+        /// Each result includes instance to identify which Moodle instance it came from.
+        /// Partial failures are included per instance result with an error.
         /// </remarks>
         [HttpGet("categories")]
-        [ProducesResponseType(typeof(CategoriesResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(AggregateResponse<CategoriesPayload>), StatusCodes.Status200OK)]
         [StandardErrorResponses]
-        public async Task<ActionResult<CategoriesResponse>> GetCategories(
+        public async Task<ActionResult<AggregateResponse<CategoriesPayload>>> GetCategories(
             CancellationToken cancellationToken)
         {
             _logger.LogInformation("Received request to get categories from all Moodle instances");
@@ -57,8 +58,8 @@ namespace MoodleInstanceBridge.Controllers
         /// <returns>Courses from all instances matching the search criteria</returns>
         /// <remarks>
         /// This endpoint queries all enabled Moodle instances using core_course_get_courses_by_field.
-        /// Each course includes sourceInstance to identify which Moodle instance it came from.
-        /// Partial failures are included in the errors array.
+        /// Each result includes instance to identify which Moodle instance it came from.
+        /// Partial failures are included per instance result with an error.
         /// 
         /// Common field values:
         /// - "category": Search by category ID
@@ -66,19 +67,14 @@ namespace MoodleInstanceBridge.Controllers
         /// - "shortname": Search by course short name
         /// </remarks>
         [HttpGet("search")]
-        [ProducesResponseType(typeof(CoursesResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(AggregateResponse<CoursesPayload>), StatusCodes.Status200OK)]
         [ValidationErrorResponse]
         [StandardErrorResponses]
-        public async Task<ActionResult<CoursesResponse>> SearchCourses(
-            [FromQuery] string field,
+        public async Task<ActionResult<AggregateResponse<CoursesPayload>>> SearchCourses(
             [FromQuery] string value,
             CancellationToken cancellationToken)
         {
-            // Validate parameters
-            if (string.IsNullOrWhiteSpace(field))
-            {
-                throw new ValidationException("field", "Field parameter is required.");
-            }
+            string field = "category";
 
             if (string.IsNullOrWhiteSpace(value))
             {

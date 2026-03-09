@@ -1,3 +1,4 @@
+using MoodleInstanceBridge.Helpers;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Models.Configuration;
 using MoodleInstanceBridge.Models.Errors;
@@ -60,12 +61,9 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
             string functionName,
             CancellationToken cancellationToken = default)
         {
-            var content = await ExecuteRequestAsync(config, url, functionName, cancellationToken);
-            
-            var result = JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var content = await ExecuteRequestAsync(config, url, functionName, cancellationToken);           
+
+            var result = JsonHelper.Deserialize<T>(content);
 
             return result ?? throw new MoodleUpstreamException(
                 "Failed to deserialize Moodle response",

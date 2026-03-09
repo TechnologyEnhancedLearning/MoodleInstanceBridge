@@ -1,10 +1,11 @@
 using LearningHub.Nhs.Models.Moodle;
 using LearningHub.Nhs.Models.Moodle.API;
+using MoodleInstanceBridge.Contracts.Aggregate;
 using MoodleInstanceBridge.Contracts.Errors;
+using MoodleInstanceBridge.Contracts.Payloads;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
-using MoodleInstanceBridge.Models.Courses;
 using MoodleInstanceBridge.Services.Orchestration;
 
 namespace MoodleInstanceBridge.Services.Courses
@@ -33,20 +34,20 @@ namespace MoodleInstanceBridge.Services.Courses
         }
 
         /// <inheritdoc />
-        public async Task<CategoriesResponse> GetCategoriesAsync(
+        public async Task<AggregateResponse<CategoriesPayload>> GetCategoriesAsync(
             CancellationToken cancellationToken = default)
         {
             return await _categoryOrchestrator.ExecuteAcrossInstancesAsync(
                 operationName: "Category lookup",
                 instanceOperation: (config, ct) => GetCategoriesFromInstanceAsync(config, ct),
                 resultAggregator: AggregateCategoryResults,
-                createEmptyResponse: () => new CategoriesResponse(),
+                createEmptyResponse: () => new AggregateResponse<CategoriesPayload>(),
                 cancellationToken: cancellationToken
             );
         }
 
         /// <inheritdoc />
-        public async Task<CoursesResponse> SearchCoursesAsync(
+        public async Task<AggregateResponse<CoursesPayload>> SearchCoursesAsync(
             string field,
             string value,
             CancellationToken cancellationToken = default)
@@ -60,7 +61,7 @@ namespace MoodleInstanceBridge.Services.Courses
                 operationName: $"Course search by {field}={value}",
                 instanceOperation: (config, ct) => SearchCoursesInInstanceAsync(config, field, value, ct),
                 resultAggregator: AggregateCourseResults,
-                createEmptyResponse: () => new CoursesResponse(),
+                createEmptyResponse: () => new AggregateResponse<CoursesPayload>(),
                 cancellationToken: cancellationToken
             );
         }
@@ -133,53 +134,57 @@ namespace MoodleInstanceBridge.Services.Courses
         }
 
         /// <summary>
-        /// Aggregate category results from multiple instances
+        /// Aggregate category results from multiple instances into an AggregateResponse
         /// </summary>
         private void AggregateCategoryResults(
-            CategoriesResponse response,
+            AggregateResponse<CategoriesPayload> response,
             IEnumerable<(string ShortName, List<MoodleCategory>? Result, InstanceError? Error)> results)
         {
             foreach (var (shortName, categories, error) in results)
             {
                 if (error != null)
                 {
-                    response.Errors.Add(error);
+                    response.Results.Add(new AggregateResult<CategoriesPayload>
+                    {
+                        Instance = shortName,
+                        Error = error
+                    });
                 }
                 else if (categories != null)
                 {
-                    foreach (var category in categories)
+                    response.Results.Add(new AggregateResult<CategoriesPayload>
                     {
-                        response.Categories.Add(new MoodleCategory
-                        {
-                            Id = category.Id,
-                            Name = category.Name,
-                            Description = category.Description,
-                            Parent = category.Parent,
-                            Depth = category.Depth,
-                            Path = category.Path,
-                            Visible = category.Visible
-                        });
-                    }
+                        Instance = shortName,
+                        Data = new CategoriesPayload { Categories = categories }
+                    });
                 }
             }
         }
 
         /// <summary>
-        /// Aggregate course search results from multiple instances
+        /// Aggregate course search results from multiple instances into an AggregateResponse
         /// </summary>
         private void AggregateCourseResults(
-            CoursesResponse response,
+            AggregateResponse<CoursesPayload> response,
             IEnumerable<(string ShortName, MoodleCoursesResponseModel? Result, InstanceError? Error)> results)
         {
             foreach (var (shortName, courses, error) in results)
             {
                 if (error != null)
                 {
-                    response.Errors.Add(error);
+                    response.Results.Add(new AggregateResult<CoursesPayload>
+                    {
+                        Instance = shortName,
+                        Error = error
+                    });
                 }
                 else if (courses != null)
                 {
-                    response.Courses = courses;
+                    response.Results.Add(new AggregateResult<CoursesPayload>
+                    {
+                        Instance = shortName,
+                        Data = new CoursesPayload { Courses = courses }
+                    });
                 }
             }
         }
