@@ -95,5 +95,43 @@ namespace MoodleInstanceBridge.Controllers
 
             return Ok(response);
         }
+
+        /// <summary>
+        /// Get subcategories for a given category ID from all enabled Moodle instances
+        /// </summary>
+        /// <param name="categoryId">The parent category ID to retrieve subcategories for</param>
+        /// <param name="instance">
+        /// Optional short name of a specific Moodle instance to query.
+        /// When omitted all enabled instances are queried.
+        /// </param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Subcategories from all instances (or the specified instance) belonging to the specified parent category</returns>
+        /// <remarks>
+        /// This endpoint queries all enabled Moodle instances using core_course_get_categories
+        /// with criteria[0][key]=id and criteria[0][value]={categoryId}, then filters to return
+        /// only direct subcategories of the specified parent category.
+        /// Each result includes instance to identify which Moodle instance it came from.
+        /// Partial failures are included per instance result with an error.
+        /// If no subcategories exist, an empty list is returned for each instance.
+        /// Supply the optional <c>instance</c> query parameter to limit the query to a single named instance.
+        /// </remarks>
+        [HttpGet("{categoryId}/subcategories")]
+        [ProducesResponseType(typeof(AggregateResponse<SubCategoriesPayload>), StatusCodes.Status200OK)]
+        [StandardErrorResponses]
+        public async Task<ActionResult<AggregateResponse<SubCategoriesPayload>>> GetSubCategories(
+            [FromRoute] int categoryId,
+            CancellationToken cancellationToken,
+            [FromQuery] string? instance = null)
+        {
+            _logger.LogInformation(
+                "Received request to get subcategories for category {CategoryId} from {Instance}",
+                categoryId,
+                instance ?? "all Moodle instances"
+            );
+
+            var response = await _courseLookupService.GetSubCategoriesAsync(categoryId, instance, cancellationToken);
+
+            return Ok(response);
+        }
     }
 }

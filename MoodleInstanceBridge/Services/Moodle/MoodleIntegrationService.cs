@@ -91,5 +91,13 @@ namespace MoodleInstanceBridge.Services.Moodle
         {
             return _userService.GetUserCertificatesAsync(config, userId, filterText, cancellationToken);
         }
+
+        public Task<List<MoodleSubCategoryResponseModel>> GetSubCategoriesAsync(
+            MoodleInstanceConfig config,
+            int categoryId,
+            CancellationToken cancellationToken = default)
+        {
+            return _courseService.GetSubCategoriesAsync(config, categoryId, cancellationToken);
+        }
     }
 }
