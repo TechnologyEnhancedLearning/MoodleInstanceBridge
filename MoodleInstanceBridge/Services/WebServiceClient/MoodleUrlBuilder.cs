@@ -127,5 +127,17 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
                 queryParams["searchterm"] = filterText?.ToString();
             });
         }
+
+        /// <summary>
+        /// Builds URL for core_course_get_categories filtered by category ID (to retrieve subcategories)
+        /// </summary>
+        public static string BuildSubCategoriesUrl(MoodleInstanceConfig config, int categoryId)
+        {
+            return BuildUrl(config, "core_course_get_categories", queryParams =>
+            {
+                queryParams["criteria[0][key]"] = "id";
+                queryParams["criteria[0][value]"] = categoryId.ToString();
+            });
+        }
     }
 }

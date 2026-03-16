@@ -26,5 +26,21 @@ namespace MoodleInstanceBridge.Interfaces.Services
             string field,
             string value,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get subcategories of a given category across all enabled Moodle instances,
+        /// or from a specific instance when <paramref name="instance"/> is provided.
+        /// </summary>
+        /// <param name="categoryId">Parent category ID to retrieve subcategories for</param>
+        /// <param name="instance">
+        /// Optional short name of a specific Moodle instance to query.
+        /// When <c>null</c> or empty all enabled instances are queried.
+        /// </param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Aggregated response containing subcategories per instance and any errors</returns>
+        Task<AggregateResponse<SubCategoriesPayload>> GetSubCategoriesAsync(
+            int categoryId,
+            string? instance = null,
+            CancellationToken cancellationToken = default);
     }
 }

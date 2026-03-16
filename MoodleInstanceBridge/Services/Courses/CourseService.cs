@@ -18,17 +18,20 @@ namespace MoodleInstanceBridge.Services.Courses
     {
         private readonly MultiInstanceOrchestrator<List<MoodleCategory>> _categoryOrchestrator;
         private readonly MultiInstanceOrchestrator<MoodleCoursesResponseModel> _courseOrchestrator;
+        private readonly MultiInstanceOrchestrator<List<MoodleSubCategoryResponseModel>> _subCategoryOrchestrator;
         private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<CourseService> _logger;
 
         public CourseService(
             MultiInstanceOrchestrator<List<MoodleCategory>> categoryOrchestrator,
             MultiInstanceOrchestrator<MoodleCoursesResponseModel> courseOrchestrator,
+            MultiInstanceOrchestrator<List<MoodleSubCategoryResponseModel>> subCategoryOrchestrator,
             IMoodleIntegrationService moodleIntegrationService,
             ILogger<CourseService> logger)
         {
             _categoryOrchestrator = categoryOrchestrator;
             _courseOrchestrator = courseOrchestrator;
+            _subCategoryOrchestrator = subCategoryOrchestrator;
             _moodleIntegrationService = moodleIntegrationService;
             _logger = logger;
         }
@@ -62,6 +65,45 @@ namespace MoodleInstanceBridge.Services.Courses
                 instanceOperation: (config, ct) => SearchCoursesInInstanceAsync(config, field, value, ct),
                 resultAggregator: AggregateCourseResults,
                 createEmptyResponse: () => new AggregateResponse<CoursesPayload>(),
+                cancellationToken: cancellationToken
+            );
+        }
+
+        /// <inheritdoc />
+        public async Task<AggregateResponse<SubCategoriesPayload>> GetSubCategoriesAsync(
+            int categoryId,
+            string? instance = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (!string.IsNullOrWhiteSpace(instance))
+            {
+                // Target a single named instance.
+                // Capture config.ShortName inside the operation so the result label is consistent
+                // with the multi-instance path (which uses config.ShortName).
+                string? resolvedShortName = null;
+                var singleResult = await _subCategoryOrchestrator.ExecuteOnInstanceAsync(
+                    shortName: instance,
+                    operation: async (config, ct) =>
+                    {
+                        resolvedShortName = config.ShortName;
+                        return await _moodleIntegrationService.GetSubCategoriesAsync(config, categoryId, ct);
+                    },
+                    cancellationToken: cancellationToken
+                );
+
+                var (_, result, error) = singleResult;
+                var normalizedResult = (resolvedShortName ?? instance, result, error);
+
+                var response = new AggregateResponse<SubCategoriesPayload>();
+                AggregateSubCategoryResults(response, new[] { normalizedResult });
+                return response;
+            }
+
+            return await _subCategoryOrchestrator.ExecuteAcrossInstancesAsync(
+                operationName: $"Subcategory lookup for category {categoryId}",
+                instanceOperation: (config, ct) => GetSubCategoriesFromInstanceAsync(config, categoryId, config.ShortName, ct),
+                resultAggregator: AggregateSubCategoryResults,
+                createEmptyResponse: () => new AggregateResponse<SubCategoriesPayload>(),
                 cancellationToken: cancellationToken
             );
         }
@@ -134,6 +176,39 @@ namespace MoodleInstanceBridge.Services.Courses
         }
 
         /// <summary>
+        /// Get subcategories from a specific Moodle instance - domain logic only
+        /// </summary>
+        private async Task<(string ShortName, List<MoodleSubCategoryResponseModel>? Result, InstanceError? Error)>
+            GetSubCategoriesFromInstanceAsync(
+                MoodleInstanceConfig config,
+                int categoryId,
+                string instance,
+                CancellationToken cancellationToken)
+        {
+            try
+            {
+                var subcategories = await _moodleIntegrationService.GetSubCategoriesAsync(
+                    config,
+                    categoryId,
+                    cancellationToken
+                );
+
+                return (instance, subcategories, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error getting subcategories for category {CategoryId} from instance {Instance}",
+                    categoryId,
+                    instance
+                );
+
+                return (instance, null, InstanceErrorHelper.CreateFromException(instance, ex));
+            }
+        }
+
+        /// <summary>
         /// Aggregate category results from multiple instances into an AggregateResponse
         /// </summary>
         private void AggregateCategoryResults(
@@ -184,6 +259,34 @@ namespace MoodleInstanceBridge.Services.Courses
                     {
                         Instance = shortName,
                         Data = new CoursesPayload { Courses = courses }
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// Aggregate subcategory results from multiple instances into an AggregateResponse
+        /// </summary>
+        private void AggregateSubCategoryResults(
+            AggregateResponse<SubCategoriesPayload> response,
+            IEnumerable<(string ShortName, List<MoodleSubCategoryResponseModel>? Result, InstanceError? Error)> results)
+        {
+            foreach (var (shortName, subcategories, error) in results)
+            {
+                if (error != null)
+                {
+                    response.Results.Add(new AggregateResult<SubCategoriesPayload>
+                    {
+                        Instance = shortName,
+                        Error = error
+                    });
+                }
+                else if (subcategories != null)
+                {
+                    response.Results.Add(new AggregateResult<SubCategoriesPayload>
+                    {
+                        Instance = shortName,
+                        Data = new SubCategoriesPayload { SubCategories = subcategories }
                     });
                 }
             }

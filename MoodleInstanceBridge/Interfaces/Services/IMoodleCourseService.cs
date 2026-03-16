@@ -32,5 +32,17 @@ namespace MoodleInstanceBridge.Interfaces.Services
             string field,
             string value,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get subcategories of a given category using core_course_get_categories web service
+        /// </summary>
+        /// <param name="config">Moodle instance configuration</param>
+        /// <param name="categoryId">Parent category ID to retrieve subcategories for</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of subcategories belonging to the specified parent category</returns>
+        Task<List<MoodleSubCategoryResponseModel>> GetSubCategoriesAsync(
+            MoodleInstanceConfig config,
+            int categoryId,
+            CancellationToken cancellationToken = default);
     }
 }

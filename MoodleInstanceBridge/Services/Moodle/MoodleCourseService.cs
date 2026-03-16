@@ -59,6 +59,35 @@ namespace MoodleInstanceBridge.Services.Moodle
             return response ?? new MoodleCoursesResponseModel();
         }
 
+        public async Task<List<MoodleSubCategoryResponseModel>> GetSubCategoriesAsync(
+            MoodleInstanceConfig config,
+            int categoryId,
+            CancellationToken cancellationToken = default)
+        {
+            var url = MoodleUrlBuilder.BuildSubCategoriesUrl(config, categoryId);
+            var categories = await _webServiceClient.ExecuteRequestAsync<List<MoodleSubCategoryResponseModel>>(
+                config,
+                url,
+                "core_course_get_categories",
+                cancellationToken);
+
+            if (categories == null || categories.Count == 0)
+                return new List<MoodleSubCategoryResponseModel>();
+
+            var subcategories = categories
+                .Where(sc => sc.Id != categoryId && sc.Parent == categoryId)
+                .ToList();
+
+            _logger.LogInformation(
+                "Found {Count} subcategories for category {CategoryId} in instance {Instance}",
+                subcategories.Count,
+                categoryId,
+                config.ShortName
+            );
+
+            return subcategories;
+        }
+
         private static void ValidateInputs(string field, string value)
         {
             if (string.IsNullOrWhiteSpace(field))
