@@ -50,12 +50,15 @@ namespace MoodleInstanceBridge.Controllers
         }
 
         /// <summary>
-        /// Search for courses across all enabled Moodle instances
+        /// Search for courses across all enabled Moodle instances, or from a specific instance when the <c>instance</c> parameter is provided
         /// </summary>
-        /// <param name="field">Field to search by (e.g., "category" for courses in a category)</param>
-        /// <param name="value">Value to search for</param>
+        /// <param name="value">Value to search for (searched against the category field)</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Courses from all instances matching the search criteria</returns>
+        /// <param name="instance">
+        /// Optional short name of a specific Moodle instance to query.
+        /// When omitted all enabled instances are queried.
+        /// </param>
+        /// <returns>Courses from all instances (or the specified instance) matching the search criteria</returns>
         /// <remarks>
         /// This endpoint queries all enabled Moodle instances using core_course_get_courses_by_field.
         /// Each result includes instance to identify which Moodle instance it came from.
@@ -65,6 +68,8 @@ namespace MoodleInstanceBridge.Controllers
         /// - "category": Search by category ID
         /// - "id": Search by course ID
         /// - "shortname": Search by course short name
+        /// 
+        /// Supply the optional <c>instance</c> query parameter to limit the query to a single named instance.
         /// </remarks>
         [HttpGet("search")]
         [ProducesResponseType(typeof(AggregateResponse<CoursesPayload>), StatusCodes.Status200OK)]
@@ -72,7 +77,8 @@ namespace MoodleInstanceBridge.Controllers
         [StandardErrorResponses]
         public async Task<ActionResult<AggregateResponse<CoursesPayload>>> SearchCourses(
             [FromQuery] string value,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            [FromQuery] string? instance = null)
         {
             string field = "category";
 
@@ -82,14 +88,16 @@ namespace MoodleInstanceBridge.Controllers
             }
 
             _logger.LogInformation(
-                "Received request to search courses with {Field}={Value}",
+                "Received request to search courses with {Field}={Value} from {Instance}",
                 field,
-                value
+                value,
+                instance ?? "all Moodle instances"
             );
 
             var response = await _courseLookupService.SearchCoursesAsync(
                 field,
                 value,
+                instance,
                 cancellationToken
             );
 
