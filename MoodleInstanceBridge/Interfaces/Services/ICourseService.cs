@@ -16,15 +16,21 @@ namespace MoodleInstanceBridge.Interfaces.Services
         Task<AggregateResponse<CategoriesPayload>> GetCategoriesAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Search for courses across all enabled Moodle instances by field
+        /// Search for courses across all enabled Moodle instances by field,
+        /// or from a specific instance when <paramref name="instance"/> is provided.
         /// </summary>
         /// <param name="field">Field to search by (e.g., "category", "id")</param>
         /// <param name="value">Value to search for</param>
+        /// <param name="instance">
+        /// Optional short name of a specific Moodle instance to query.
+        /// When <c>null</c> or empty all enabled instances are queried.
+        /// </param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Aggregated response containing courses per instance and any errors</returns>
         Task<AggregateResponse<CoursesPayload>> SearchCoursesAsync(
             string field,
             string value,
+            string? instance = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>

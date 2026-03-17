@@ -53,12 +53,35 @@ namespace MoodleInstanceBridge.Services.Courses
         public async Task<AggregateResponse<CoursesPayload>> SearchCoursesAsync(
             string field,
             string value,
+            string? instance = null,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(field))
                 throw new ArgumentException("Field cannot be null or whitespace.", nameof(field));
             if (string.IsNullOrWhiteSpace(value))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(value));
+
+            if (!string.IsNullOrWhiteSpace(instance))
+            {
+                // Target a single named instance.
+                string? resolvedShortName = null;
+                var singleResult = await _courseOrchestrator.ExecuteOnInstanceAsync(
+                    shortName: instance,
+                    operation: async (config, ct) =>
+                    {
+                        resolvedShortName = config.ShortName;
+                        return await _moodleIntegrationService.GetCoursesByFieldAsync(config, field, value, ct);
+                    },
+                    cancellationToken: cancellationToken
+                );
+
+                var (_, result, error) = singleResult;
+                var normalizedResult = (resolvedShortName ?? instance, result, error);
+
+                var response = new AggregateResponse<CoursesPayload>();
+                AggregateCourseResults(response, new[] { normalizedResult });
+                return response;
+            }
 
             return await _courseOrchestrator.ExecuteAcrossInstancesAsync(
                 operationName: $"Course search by {field}={value}",

@@ -7,6 +7,11 @@ namespace MoodleInstanceBridge.Helpers
     {
         public override bool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
+            if (reader.TokenType == JsonTokenType.Null)
+            {
+                return false; // default when null
+            }
+
             if (reader.TokenType == JsonTokenType.Number)
             {
                 return reader.GetInt32() == 1;
