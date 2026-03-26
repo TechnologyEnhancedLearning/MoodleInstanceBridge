@@ -15,6 +15,7 @@
             };
 
             Options.Converters.Add(new BoolIntConverter());
+            Options.Converters.Add(new NullableLongConverter());
         }
 
         public static T Deserialize<T>(string json)
