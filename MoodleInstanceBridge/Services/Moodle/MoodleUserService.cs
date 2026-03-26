@@ -1,5 +1,7 @@
+using Azure;
 using LearningHub.Nhs.Models.Moodle;
 using LearningHub.Nhs.Models.Moodle.API;
+using MoodleInstanceBridge.Helpers;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
@@ -61,6 +63,11 @@ namespace MoodleInstanceBridge.Services.Moodle
                 url,
                 "core_enrol_get_users_courses",
                 cancellationToken);
+
+            foreach (var item in courses)
+            {
+                item.CourseUrl = CourseHelper.GetCourseUrl(config.BaseUrl, item.Id);
+            }
 
             return courses ?? new List<MoodleCourseResponseModel>();
         }
@@ -135,6 +142,11 @@ namespace MoodleInstanceBridge.Services.Moodle
                 url,
                 "mylearningservice_get_recent_courses",
                 cancellationToken);
+
+            foreach (var item in recentCourses)
+            {
+                item.CourseUrl = CourseHelper.GetCourseUrl(config.BaseUrl, item.Id);
+            }
 
             return recentCourses ?? new List<MoodleEnrolledCourseResponseModel>();
         }
