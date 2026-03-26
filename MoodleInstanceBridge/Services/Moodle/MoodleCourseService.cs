@@ -1,5 +1,6 @@
 using LearningHub.Nhs.Models.Moodle;
 using LearningHub.Nhs.Models.Moodle.API;
+using MoodleInstanceBridge.Helpers;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
@@ -54,7 +55,12 @@ namespace MoodleInstanceBridge.Services.Moodle
                 config,
                 url,
                 "core_course_get_courses_by_field",
-                cancellationToken);          
+                cancellationToken);
+
+            foreach (var item in response.Courses)
+            {
+                item.CourseUrl = CourseHelper.GetCourseUrl(config.BaseUrl,item.Id);
+            }
 
             return response ?? new MoodleCoursesResponseModel();
         }
@@ -94,6 +100,6 @@ namespace MoodleInstanceBridge.Services.Moodle
                 throw new ArgumentException("Field cannot be null or whitespace.", nameof(field));
             if (string.IsNullOrWhiteSpace(value))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(value));
-        }
+        }        
     }
 }
