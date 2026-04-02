@@ -4,6 +4,7 @@ using LearningHub.Nhs.Models.Moodle.API;
 using MoodleInstanceBridge.Contracts.Aggregate;
 using MoodleInstanceBridge.Contracts.Errors;
 using MoodleInstanceBridge.Contracts.Payloads;
+using MoodleInstanceBridge.Contracts.Requests;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
@@ -26,6 +27,7 @@ namespace MoodleInstanceBridge.Services.Users
         private readonly TargetedInstanceOrchestrator _userDataOrchestrator;
         private readonly TargetedInstanceOrchestrator _recentCoursesOrchestrator;
         private readonly TargetedInstanceOrchestrator _certificatesOrchestrator;
+        private readonly TargetedInstanceOrchestrator _updateEmailOrchestrator;
         private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<UserService> _logger;
 
@@ -36,6 +38,7 @@ namespace MoodleInstanceBridge.Services.Users
            TargetedInstanceOrchestrator userDataOrchestrator,
            TargetedInstanceOrchestrator recentCoursesOrchestrator,
            TargetedInstanceOrchestrator certificatesOrchestrator,
+           TargetedInstanceOrchestrator updateEmailOrchestrator,
            IMoodleIntegrationService moodleIntegrationService,
            ILogger<UserService> logger)
         {
@@ -45,6 +48,7 @@ namespace MoodleInstanceBridge.Services.Users
             _userDataOrchestrator = userDataOrchestrator;
             _recentCoursesOrchestrator = recentCoursesOrchestrator;
             _certificatesOrchestrator = certificatesOrchestrator;
+            _updateEmailOrchestrator = updateEmailOrchestrator;
             _moodleIntegrationService = moodleIntegrationService;
             _logger = logger;
         }
@@ -189,6 +193,83 @@ namespace MoodleInstanceBridge.Services.Users
             );
 
             return AggregateResults(results, certificates => new UserCertificatesPayload { Certificates = certificates });
+        }
+
+        /// <inheritdoc />
+        public async Task<UpdateEmailResponse> UpdateUserEmailAsync(
+            UpdateEmailRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            _logger.LogInformation(
+                "Starting email update from {OldEmail} to {NewEmail}",
+                request.OldEmail,
+                request.NewEmail
+            );
+
+            // Step 1: Look up the user by old email across all instances
+            var lookupResponse = await GetMoodleUserIdsByEmailAsync(request.OldEmail, cancellationToken);
+
+            var response = new UpdateEmailResponse();
+
+            // Propagate any lookup errors
+            foreach (var error in lookupResponse.Errors)
+            {
+                response.Errors.Add(error);
+            }
+
+            if (!lookupResponse.MoodleUserIds.Any())
+            {
+                _logger.LogInformation(
+                    "No users found with email {OldEmail} across any instances",
+                    request.OldEmail
+                );
+                return response;
+            }
+
+            // Build instance -> userId map from the lookup results (only entries with a valid user ID)
+            var instanceUserIds = lookupResponse.MoodleUserIds
+                .Where(r => r.UserId != null)
+                .ToDictionary(r => r.Instance, r => r.UserId!.Id);
+
+            // Step 2: Update email in each instance where the user exists
+            var updateResults = await _updateEmailOrchestrator.ExecuteAcrossTargetedInstancesAsync<bool>(
+                operationName: $"Email update for user {request.OldEmail}",
+                instanceUserIds: instanceUserIds,
+                instanceOperation: async (config, userId, ct) =>
+                {
+                    await _moodleIntegrationService.UpdateUserEmailAsync(config, userId, request.NewEmail, ct);
+                    return true;
+                },
+                cancellationToken: cancellationToken
+            );
+
+            // Step 3: Build response from update results
+            foreach (var (instanceId, _, error) in updateResults)
+            {
+                if (error != null)
+                {
+                    response.Errors.Add(error);
+                }
+                else
+                {
+                    response.Results.Add(new UpdateEmailResult
+                    {
+                        Instance = instanceId,
+                        Status = "updated"
+                    });
+                }
+            }
+
+            _logger.LogInformation(
+                "Email update completed: {SuccessCount} updated, {ErrorCount} errors",
+                response.Results.Count,
+                response.Errors.Count
+            );
+
+            return response;
         }
 
         /// <summary>

@@ -139,5 +139,17 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
                 queryParams["criteria[0][value]"] = categoryId.ToString();
             });
         }
+
+        /// <summary>
+        /// Builds URL for core_user_update_users (update a user's email address)
+        /// </summary>
+        public static string BuildUpdateUserEmailUrl(MoodleInstanceConfig config, int userId, string newEmail)
+        {
+            return BuildUrl(config, "core_user_update_users", queryParams =>
+            {
+                queryParams["users[0][id]"] = userId.ToString();
+                queryParams["users[0][email]"] = newEmail;
+            });
+        }
     }
 }

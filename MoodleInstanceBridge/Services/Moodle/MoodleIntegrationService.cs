@@ -99,5 +99,14 @@ namespace MoodleInstanceBridge.Services.Moodle
         {
             return _courseService.GetSubCategoriesAsync(config, categoryId, cancellationToken);
         }
+
+        public Task UpdateUserEmailAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            string newEmail,
+            CancellationToken cancellationToken = default)
+        {
+            return _userService.UpdateUserEmailAsync(config, userId, newEmail, cancellationToken);
+        }
     }
 }

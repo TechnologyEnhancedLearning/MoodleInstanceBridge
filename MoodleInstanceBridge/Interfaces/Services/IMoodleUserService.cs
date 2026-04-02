@@ -92,5 +92,18 @@ namespace MoodleInstanceBridge.Interfaces.Services
             int userId,
             string filterText,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Update a user's email address using core_user_update_users web service
+        /// </summary>
+        /// <param name="config">Moodle instance configuration</param>
+        /// <param name="userId">Moodle user ID</param>
+        /// <param name="newEmail">New email address to set</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        Task UpdateUserEmailAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            string newEmail,
+            CancellationToken cancellationToken = default);
     }
 }
