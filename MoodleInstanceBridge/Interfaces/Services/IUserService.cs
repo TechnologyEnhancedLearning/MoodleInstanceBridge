@@ -1,5 +1,6 @@
 using MoodleInstanceBridge.Contracts.Aggregate;
 using MoodleInstanceBridge.Contracts.Payloads;
+using MoodleInstanceBridge.Contracts.Requests;
 using MoodleInstanceBridge.Models.Courses;
 using MoodleInstanceBridge.Models.Users;
 
@@ -78,6 +79,21 @@ namespace MoodleInstanceBridge.Interfaces.Services
         Task<AggregateResponse<UserCertificatesPayload>> GetUserCertificatesAsync(
             UserIdsRequest userIdsRequest,
             string filterText,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Update a user's email address across all enabled Moodle instances
+        /// </summary>
+        /// <remarks>
+        /// Looks up the user by old email across all instances, then updates the email
+        /// in each instance where the user exists. Instances where the user is not found
+        /// are skipped without error. Partial failures do not block updates in other instances.
+        /// </remarks>
+        /// <param name="request">Request containing old and new email addresses</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Response with per-instance update status and any errors</returns>
+        Task<UpdateEmailResponse> UpdateUserEmailAsync(
+            UpdateEmailRequest request,
             CancellationToken cancellationToken = default);
     }
 }

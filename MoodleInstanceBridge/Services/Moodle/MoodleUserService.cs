@@ -170,6 +170,31 @@ namespace MoodleInstanceBridge.Services.Moodle
             return certificates ?? new List<MoodleUserCertificateResponseModel>();
         }
 
+        public async Task UpdateUserEmailAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            string newEmail,
+            CancellationToken cancellationToken = default)
+        {
+            if (userId <= 0)
+                throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
+            if (string.IsNullOrWhiteSpace(newEmail))
+                throw new ArgumentException("New email cannot be null or whitespace.", nameof(newEmail));
+
+            var url = MoodleUrlBuilder.BuildUpdateUserEmailUrl(config, userId, newEmail);
+            await _webServiceClient.ExecuteRequestAsync(
+                config,
+                url,
+                "core_user_update_users",
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Updated email for user {UserId} in instance {Instance}",
+                userId,
+                config.ShortName
+            );
+        }
+
         private static void ValidateInputs(string field, string value)
         {
             if (string.IsNullOrWhiteSpace(field))

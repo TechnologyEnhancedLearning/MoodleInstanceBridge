@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using MoodleInstanceBridge.Attributes;
 using MoodleInstanceBridge.Contracts.Aggregate;
 using MoodleInstanceBridge.Contracts.Payloads;
+using MoodleInstanceBridge.Contracts.Requests;
 using MoodleInstanceBridge.Controllers.Helpers;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Courses;
@@ -268,6 +269,96 @@ namespace MoodleInstanceBridge.Controllers
 
             var response = await _userService.GetUserCertificatesAsync(request, filterText, cancellationToken);
             return Ok(response);
+        }
+
+        /// <summary>
+        /// Update a user's email address across all Moodle instances
+        /// </summary>
+        /// <param name="request">Request containing old and new email addresses</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Per-instance update status</returns>
+        /// <remarks>
+        /// Looks up the user by their current (old) email across all enabled Moodle instances,
+        /// then updates the email to the new address in each instance where the user is found.
+        /// 
+        /// Instances where the user does not exist are skipped. Partial failures do not block
+        /// successful updates in other instances.
+        /// 
+        /// Example request body:
+        /// <code>
+        /// {
+        ///   "oldEmail": "old@example.com",
+        ///   "newEmail": "new@example.com"
+        /// }
+        /// </code>
+        /// 
+        /// Example response:
+        /// <code>
+        /// {
+        ///   "results": [
+        ///     { "instance": "mooc", "status": "updated" },
+        ///     { "instance": "vle",  "status": "updated" }
+        ///   ],
+        ///   "errors": [
+        ///     { "instance": "legacy", "code": "INSTANCE_UNAVAILABLE", "message": "..." }
+        ///   ]
+        /// }
+        /// </code>
+        /// </remarks>
+        [HttpPost("update-email")]
+        [ProducesResponseType(typeof(UpdateEmailResponse), StatusCodes.Status200OK)]
+        [ValidationErrorResponse]
+        [StandardErrorResponses]
+        public async Task<ActionResult<UpdateEmailResponse>> UpdateEmail(
+            [FromBody] UpdateEmailRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request == null)
+            {
+                throw new ValidationException("request", "Request body is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.OldEmail))
+            {
+                throw new ValidationException("oldEmail", "Old email address is required.");
+            }
+
+            ValidateEmailFormat(request.OldEmail, "oldEmail");
+
+            if (string.IsNullOrWhiteSpace(request.NewEmail))
+            {
+                throw new ValidationException("newEmail", "New email address is required.");
+            }
+
+            ValidateEmailFormat(request.NewEmail, "newEmail");
+
+            _logger.LogInformation(
+                "Received request to update email from {OldEmail} to {NewEmail}",
+                request.OldEmail,
+                request.NewEmail
+            );
+
+            var response = await _userService.UpdateUserEmailAsync(request, cancellationToken);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Validates that a string is a well-formed email address
+        /// </summary>
+        private static void ValidateEmailFormat(string email, string fieldName)
+        {
+            try
+            {
+                var mailAddress = new System.Net.Mail.MailAddress(email);
+                if (!string.Equals(mailAddress.Address, email, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ValidationException(fieldName, $"{fieldName} format is invalid.");
+                }
+            }
+            catch (FormatException)
+            {
+                throw new ValidationException(fieldName, $"{fieldName} format is invalid.");
+            }
         }
     }
 }
