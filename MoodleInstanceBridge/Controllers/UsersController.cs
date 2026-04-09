@@ -272,6 +272,48 @@ namespace MoodleInstanceBridge.Controllers
         }
 
         /// <summary>
+        /// Get badges awarded to users across specified Moodle instances
+        /// </summary>
+        /// <param name="request">Request containing user IDs per instance</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>User badges from specified instances</returns>
+        /// <remarks>
+        /// Retrieves all badges awarded to users from the specified Moodle instances using
+        /// the core_badges_get_user_badges Moodle web service.
+        /// 
+        /// Example request body:
+        /// <code>
+        /// {
+        ///   "userIds": {
+        ///     "mooc": 1234,
+        ///     "vle": 982
+        ///   }
+        /// }
+        /// </code>
+        /// 
+        /// The response includes results from each instance. Each result contains either badge data 
+        /// or an error. This allows partial success when some instances fail.
+        /// </remarks>
+        [HttpPost("badges")]
+        [ProducesResponseType(typeof(AggregateResponse<UserBadgesPayload>), StatusCodes.Status200OK)]
+        [ValidationErrorResponse]
+        [StandardErrorResponses]
+        public async Task<ActionResult<AggregateResponse<UserBadgesPayload>>> GetBadges(
+            [FromBody] UserIdsRequest request,
+            CancellationToken cancellationToken)
+        {
+            RequestValidationHelper.ValidateUserIdsRequest(request);
+
+            _logger.LogInformation(
+                "Received request to get badges for {Count} instance(s)",
+                request.UserIds.Count
+            );
+
+            var response = await _userService.GetUserBadgesAsync(request, cancellationToken);
+            return Ok(response);
+        }
+
+        /// <summary>
         /// Update a user's email address across all Moodle instances
         /// </summary>
         /// <param name="request">Request containing old and new email addresses</param>

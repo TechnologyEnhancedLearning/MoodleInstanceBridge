@@ -5,6 +5,7 @@ using MoodleInstanceBridge.Helpers;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
+using MoodleInstanceBridge.Models.Moodle;
 using MoodleInstanceBridge.Services.WebServiceClient;
 
 namespace MoodleInstanceBridge.Services.Moodle
@@ -23,7 +24,7 @@ namespace MoodleInstanceBridge.Services.Moodle
             _logger = logger;
         }
 
-        public async Task<List<MoodleUser>> GetUsersByFieldAsync(
+        public async Task<List<LearningHub.Nhs.Models.Moodle.MoodleUser>> GetUsersByFieldAsync(
             MoodleInstanceConfig config,
             string field,
             string value,
@@ -32,7 +33,7 @@ namespace MoodleInstanceBridge.Services.Moodle
             ValidateInputs(field, value);
 
             var url = MoodleUrlBuilder.BuildUsersByFieldUrl(config, field, value);
-            var users = await _webServiceClient.ExecuteRequestAsync<List<MoodleUser>>(
+            var users = await _webServiceClient.ExecuteRequestAsync<List<LearningHub.Nhs.Models.Moodle.MoodleUser>>(
                 config, 
                 url, 
                 "core_user_get_users_by_field", 
@@ -46,7 +47,7 @@ namespace MoodleInstanceBridge.Services.Moodle
                 config.ShortName
             );
 
-            return users ?? new List<MoodleUser>();
+            return users ?? new List<LearningHub.Nhs.Models.Moodle.MoodleUser>();
         }
 
         public async Task<List<MoodleCourseResponseModel>> GetUserCoursesAsync(
@@ -193,6 +194,31 @@ namespace MoodleInstanceBridge.Services.Moodle
                 userId,
                 config.ShortName
             );
+        }
+
+        public async Task<List<MoodleUserBadgeResponseModel>> GetUserBadgesAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            if (userId <= 0)
+                throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
+
+            var url = MoodleUrlBuilder.BuildUserBadgesUrl(config, userId);
+            var response = await _webServiceClient.ExecuteRequestAsync<MoodleUserBadgesApiResponse>(
+                config,
+                url,
+                "core_badges_get_user_badges",
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Retrieved {Count} badge(s) for user {UserId} in instance {Instance}",
+                response?.Badges?.Count ?? 0,
+                userId,
+                config.ShortName
+            );
+
+            return response?.Badges ?? new List<MoodleUserBadgeResponseModel>();
         }
 
         private static void ValidateInputs(string field, string value)

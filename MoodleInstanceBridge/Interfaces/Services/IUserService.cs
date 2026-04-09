@@ -95,5 +95,15 @@ namespace MoodleInstanceBridge.Interfaces.Services
         Task<UpdateEmailResponse> UpdateUserEmailAsync(
             UpdateEmailRequest request,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get badges awarded to users across specified Moodle instances
+        /// </summary>
+        /// <param name="userIdsRequest">Map of instance IDs to user IDs</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Response containing user badges from all instances and any errors</returns>
+        Task<AggregateResponse<UserBadgesPayload>> GetUserBadgesAsync(
+            UserIdsRequest userIdsRequest,
+            CancellationToken cancellationToken = default);
     }
 }

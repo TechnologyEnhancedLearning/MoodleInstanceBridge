@@ -3,6 +3,7 @@ using LearningHub.Nhs.Models.Moodle.API;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
+using MoodleInstanceBridge.Models.Moodle;
 
 namespace MoodleInstanceBridge.Services.Moodle
 {
@@ -22,7 +23,7 @@ namespace MoodleInstanceBridge.Services.Moodle
             _courseService = courseService;
         }
 
-        public Task<List<MoodleUser>> GetUsersByFieldAsync(
+        public Task<List<LearningHub.Nhs.Models.Moodle.MoodleUser>> GetUsersByFieldAsync(
             MoodleInstanceConfig config,
             string field,
             string value,
@@ -107,6 +108,14 @@ namespace MoodleInstanceBridge.Services.Moodle
             CancellationToken cancellationToken = default)
         {
             return _userService.UpdateUserEmailAsync(config, userId, newEmail, cancellationToken);
+        }
+
+        public Task<List<MoodleUserBadgeResponseModel>> GetUserBadgesAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            return _userService.GetUserBadgesAsync(config, userId, cancellationToken);
         }
     }
 }

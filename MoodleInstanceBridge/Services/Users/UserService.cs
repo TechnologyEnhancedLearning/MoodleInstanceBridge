@@ -9,6 +9,7 @@ using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
 using MoodleInstanceBridge.Models.Courses;
+using MoodleInstanceBridge.Models.Moodle;
 using MoodleInstanceBridge.Models.Users;
 using MoodleInstanceBridge.Services.Orchestration;
 using System.Security.Cryptography.X509Certificates;
@@ -21,24 +22,26 @@ namespace MoodleInstanceBridge.Services.Users
     /// </summary>
     public class UserService : IUserService
     {
-        private readonly MultiInstanceOrchestrator<List<MoodleUser>> _allInstancesOrchestrator;
+        private readonly MultiInstanceOrchestrator<List<LearningHub.Nhs.Models.Moodle.MoodleUser>> _allInstancesOrchestrator;
         private readonly TargetedInstanceOrchestrator _courseOrchestrator;
         private readonly TargetedInstanceOrchestrator _completionOrchestrator;
         private readonly TargetedInstanceOrchestrator _userDataOrchestrator;
         private readonly TargetedInstanceOrchestrator _recentCoursesOrchestrator;
         private readonly TargetedInstanceOrchestrator _certificatesOrchestrator;
         private readonly TargetedInstanceOrchestrator _updateEmailOrchestrator;
+        private readonly TargetedInstanceOrchestrator _badgesOrchestrator;
         private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<UserService> _logger;
 
         public UserService(
-           MultiInstanceOrchestrator<List<MoodleUser>> allInstancesOrchestrator,
+           MultiInstanceOrchestrator<List<LearningHub.Nhs.Models.Moodle.MoodleUser>> allInstancesOrchestrator,
            TargetedInstanceOrchestrator courseOrchestrator,
            TargetedInstanceOrchestrator completionOrchestrator,
            TargetedInstanceOrchestrator userDataOrchestrator,
            TargetedInstanceOrchestrator recentCoursesOrchestrator,
            TargetedInstanceOrchestrator certificatesOrchestrator,
            TargetedInstanceOrchestrator updateEmailOrchestrator,
+           TargetedInstanceOrchestrator badgesOrchestrator,
            IMoodleIntegrationService moodleIntegrationService,
            ILogger<UserService> logger)
         {
@@ -49,6 +52,7 @@ namespace MoodleInstanceBridge.Services.Users
             _recentCoursesOrchestrator = recentCoursesOrchestrator;
             _certificatesOrchestrator = certificatesOrchestrator;
             _updateEmailOrchestrator = updateEmailOrchestrator;
+            _badgesOrchestrator = badgesOrchestrator;
             _moodleIntegrationService = moodleIntegrationService;
             _logger = logger;
         }
@@ -196,6 +200,21 @@ namespace MoodleInstanceBridge.Services.Users
         }
 
         /// <inheritdoc />
+        public async Task<AggregateResponse<UserBadgesPayload>> GetUserBadgesAsync(
+            UserIdsRequest userIdsRequest,
+            CancellationToken cancellationToken = default)
+        {
+            var results = await _badgesOrchestrator.ExecuteAcrossTargetedInstancesAsync(
+                operationName: "User badges lookup",
+                instanceUserIds: userIdsRequest.UserIds,
+                instanceOperation: (config, userId, ct) => _moodleIntegrationService.GetUserBadgesAsync(config, userId, ct),
+                cancellationToken: cancellationToken
+            );
+
+            return AggregateResults(results, badges => new UserBadgesPayload { Badges = badges });
+        }
+
+        /// <inheritdoc />
         public async Task<UpdateEmailResponse> UpdateUserEmailAsync(
             UpdateEmailRequest request,
             CancellationToken cancellationToken = default)
@@ -275,7 +294,7 @@ namespace MoodleInstanceBridge.Services.Users
         /// <summary>
         /// Get user from a specific Moodle instance - domain logic only
         /// </summary>
-        private async Task<(string ShortName, List<MoodleUser>? Result, InstanceError? Error)> GetUserFromInstanceAsync(
+        private async Task<(string ShortName, List<LearningHub.Nhs.Models.Moodle.MoodleUser>? Result, InstanceError? Error)> GetUserFromInstanceAsync(
             MoodleInstanceConfig config,
             string email,
             CancellationToken cancellationToken)
@@ -325,7 +344,7 @@ namespace MoodleInstanceBridge.Services.Users
         /// </summary>
         private void AggregateUserResults(
             MoodleUserIdsResponse response,
-            IEnumerable<(string InstanceName, List<MoodleUser>? Result, InstanceError? Error)> results)
+            IEnumerable<(string InstanceName, List<LearningHub.Nhs.Models.Moodle.MoodleUser>? Result, InstanceError? Error)> results)
         {
             foreach (var (instanceName, users, error) in results)
             {
