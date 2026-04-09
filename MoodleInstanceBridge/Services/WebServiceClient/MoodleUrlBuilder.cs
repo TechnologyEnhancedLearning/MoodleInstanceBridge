@@ -151,5 +151,16 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
                 queryParams["users[0][email]"] = newEmail;
             });
         }
+
+        /// <summary>
+        /// Builds URL for core_badges_get_user_badges
+        /// </summary>
+        public static string BuildUserBadgesUrl(MoodleInstanceConfig config, int userId)
+        {
+            return BuildUrl(config, "core_badges_get_user_badges", queryParams =>
+            {
+                queryParams["userid"] = userId.ToString();
+            });
+        }
     }
 }

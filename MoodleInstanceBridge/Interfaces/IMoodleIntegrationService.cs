@@ -1,6 +1,7 @@
 using LearningHub.Nhs.Models.Moodle;
 using LearningHub.Nhs.Models.Moodle.API;
 using MoodleInstanceBridge.Models.Configuration;
+using MoodleInstanceBridge.Models.Moodle;
 
 namespace MoodleInstanceBridge.Interfaces
 {
@@ -17,7 +18,7 @@ namespace MoodleInstanceBridge.Interfaces
         /// <param name="value">Value to search for</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of matching Moodle users</returns>
-        Task<List<MoodleUser>> GetUsersByFieldAsync(
+        Task<List<LearningHub.Nhs.Models.Moodle.MoodleUser>> GetUsersByFieldAsync(
             MoodleInstanceConfig config,
             string field,
             string value,
@@ -140,6 +141,18 @@ namespace MoodleInstanceBridge.Interfaces
             MoodleInstanceConfig config,
             int userId,
             string newEmail,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get badges awarded to a user using core_badges_get_user_badges web service
+        /// </summary>
+        /// <param name="config">Moodle instance configuration</param>
+        /// <param name="userId">Moodle user ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of badges awarded to the user</returns>
+        Task<List<MoodleUserBadgeResponseModel>> GetUserBadgesAsync(
+            MoodleInstanceConfig config,
+            int userId,
             CancellationToken cancellationToken = default);
     }
 }
