@@ -26,16 +26,7 @@
 		</PackageReference>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Content Update="appsettings.json">
-			<CopyToPublishDirectory>Never</CopyToPublishDirectory>
-		</Content>
-		<Content Update="appsettings.*.json">
-			<CopyToPublishDirectory>Never</CopyToPublishDirectory>
-		</Content>
-	</ItemGroup>
+	</ItemGroup>	
 
 	<ItemGroup>
 		<Folder Include="Configuration\" />
