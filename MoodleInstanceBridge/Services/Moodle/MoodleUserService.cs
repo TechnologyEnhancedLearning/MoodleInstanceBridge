@@ -211,14 +211,31 @@ namespace MoodleInstanceBridge.Services.Moodle
                 "core_badges_get_user_badges",
                 cancellationToken);
 
+            var badges = response?.Badges ?? new List<MoodleUserBadgeResponseModel>();
+
+            // Format badge URLs to ensure they are absolute URLs
+            foreach (var badge in badges)
+            {
+                // If BadgeUrl is not already an absolute URL, construct it using the base URL
+                if (!string.IsNullOrWhiteSpace(config.BaseUrl))
+                {
+                    // If it's a relative URL, use BadgeHelper to construct absolute URL
+                    var formattedUrl = BadgeHelper.GetBadgeUrl(config.BaseUrl, badge.Id, badge.UniqueHash);
+                    if (!string.IsNullOrWhiteSpace(formattedUrl))
+                    {
+                        badge.BadgeUrl = formattedUrl;
+                    }
+                }
+            }
+
             _logger.LogInformation(
                 "Retrieved {Count} badge(s) for user {UserId} in instance {Instance}",
-                response?.Badges?.Count ?? 0,
+                badges.Count,
                 userId,
                 config.ShortName
             );
 
-            return response?.Badges ?? new List<MoodleUserBadgeResponseModel>();
+            return badges;
         }
 
         private static void ValidateInputs(string field, string value)

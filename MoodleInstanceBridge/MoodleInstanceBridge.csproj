@@ -29,6 +29,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Content Update="appsettings.json">
+			<CopyToPublishDirectory>Never</CopyToPublishDirectory>
+		</Content>
+		<Content Update="appsettings.*.json">
+			<CopyToPublishDirectory>Never</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
 		<Folder Include="Configuration\" />
 	</ItemGroup>
 
