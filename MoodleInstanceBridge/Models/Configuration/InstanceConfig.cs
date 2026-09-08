@@ -49,5 +49,10 @@ namespace MoodleInstanceBridge.Models.Configuration
         /// Name of the Key Vault secret containing the API token
         /// </summary>
         public required string TokenSecretName { get; set; }
+
+        /// <summary>
+        /// Access levels allowed to access the moodle instance
+        /// </summary>
+        public string? AllowedAccessLevels { get; set; }
     }
 }

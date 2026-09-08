@@ -34,5 +34,10 @@ namespace MoodleInstanceBridge.Models.Configuration
         /// Whether this instance configuration is active
         /// </summary>
         public bool IsEnabled { get; set; } = true;
+
+        /// <summary>
+        /// List of allowed access levels
+        /// </summary>
+        public IReadOnlyList<string> AllowedAccessLevels { get; set; } = new List<string>();
     }
 }

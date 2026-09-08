@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using MoodleInstanceBridge.Models.Configuration;
 
 namespace MoodleInstanceBridge.Data
@@ -53,6 +54,9 @@ namespace MoodleInstanceBridge.Data
 
                 entity.Property(e => e.UpdatedAt)
                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.AllowedAccessLevels)
+                     .HasMaxLength(1000);
             });
         }
     }

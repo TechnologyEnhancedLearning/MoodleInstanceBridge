@@ -48,7 +48,8 @@ namespace MoodleInstanceBridge.Controllers
                         baseUrl = c.BaseUrl,
                         weighting = c.Weighting,
                         enabledEndpoints = c.EnabledEndpoints,
-                        isEnabled = c.IsEnabled
+                        isEnabled = c.IsEnabled,
+                        allowedAccessLevels = c.AllowedAccessLevels
                     }).ToList(),
                     validationErrors = validationResults
                         .Where(r => !r.IsValid)
