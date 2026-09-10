@@ -142,7 +142,12 @@ namespace MoodleInstanceBridge.Services.Configuration
                                     .Select(e => e.Trim())
                                     .ToArray(),
                             Weighting = dbConfig.Weighting,
-                            IsEnabled = dbConfig.IsEnabled
+                            IsEnabled = dbConfig.IsEnabled,
+                            AllowedAccessLevels = string.IsNullOrEmpty(dbConfig.AllowedAccessLevels)
+                                ? Array.Empty<string>()
+                                : dbConfig.AllowedAccessLevels.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                    .Select(e => e.Trim())
+                                    .ToArray()
                         };
 
                         // Validate configuration
