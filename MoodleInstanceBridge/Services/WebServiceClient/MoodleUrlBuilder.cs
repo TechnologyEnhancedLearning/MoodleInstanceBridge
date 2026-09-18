@@ -153,6 +153,40 @@ namespace MoodleInstanceBridge.Services.WebServiceClient
         }
 
         /// <summary>
+        /// Builds URL for enrol_manual_enrol_users
+        /// </summary>
+        public static string BuildEnrolUserInCourseUrl(
+            MoodleInstanceConfig config,
+            int userId,
+            int courseId,
+            int roleId)
+        {
+            return BuildUrl(config, "enrol_manual_enrol_users", queryParams =>
+            {
+                queryParams["enrolments[0][userid]"] = userId.ToString();
+                queryParams["enrolments[0][courseid]"] = courseId.ToString();
+                queryParams["enrolments[0][roleid]"] = roleId.ToString();
+            });
+        }
+
+        /// <summary>
+        /// Builds URL for enrol_manual_unenrol_users
+        /// </summary>
+        public static string BuildUnEnrolUserInCourseUrl(
+            MoodleInstanceConfig config,
+            int userId,
+            int courseId,
+            int roleId)
+        {
+            return BuildUrl(config, "enrol_manual_unenrol_users", queryParams =>
+            {
+                queryParams["enrolments[0][userid]"] = userId.ToString();
+                queryParams["enrolments[0][courseid]"] = courseId.ToString();
+                queryParams["enrolments[0][roleid]"] = roleId.ToString();
+            });
+        }
+
+        /// <summary>
         /// Builds URL for core_badges_get_user_badges
         /// </summary>
         public static string BuildUserBadgesUrl(MoodleInstanceConfig config, int userId)

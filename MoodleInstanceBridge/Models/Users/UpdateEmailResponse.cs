@@ -38,4 +38,22 @@ namespace MoodleInstanceBridge.Models.Users
         [JsonPropertyName("status")]
         public required string Status { get; set; }
     }
+
+    /// <summary>
+    /// Response from a single-instance Moodle course enrolment request
+    /// </summary>
+    public class EnrolmentResponse
+    {
+        /// <summary>
+        /// Instance short name identifier
+        /// </summary>
+        [JsonPropertyName("instance")]
+        public required string Instance { get; set; }
+
+        /// <summary>
+        /// Operation status (e.g. "enrolled", "already_enrolled")
+        /// </summary>
+        [JsonPropertyName("status")]
+        public required string Status { get; set; }
+    }
 }
