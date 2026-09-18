@@ -97,6 +97,26 @@ namespace MoodleInstanceBridge.Interfaces.Services
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Enrol a Learning Hub user onto a Moodle course in a specific instance
+        /// </summary>
+        /// <param name="request">Target instance, course ID, and Learning Hub user identity</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Single-instance enrolment outcome</returns>
+        Task<EnrolmentResponse> EnrolUserOnCourseAsync(
+            EnrolmentRequest request,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Unenrol a Learning Hub user from a Moodle course in a specific instance
+        /// </summary>
+        /// <param name="request">Target instance, course ID, and Learning Hub user identity</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Single-instance enrolment outcome</returns>
+        Task<EnrolmentResponse> UnEnrolUserOnCourseAsync(
+            EnrolmentRequest request,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Get badges awarded to users across specified Moodle instances
         /// </summary>
         /// <param name="userIdsRequest">Map of instance IDs to user IDs</param>

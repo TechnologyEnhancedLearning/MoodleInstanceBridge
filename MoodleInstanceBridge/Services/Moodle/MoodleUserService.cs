@@ -40,10 +40,9 @@ namespace MoodleInstanceBridge.Services.Moodle
                 cancellationToken);
 
             _logger.LogInformation(
-                "Found {Count} users for {Field}={Value} in instance {Instance}",
+                "Found {Count} users for field {Field} in instance {Instance}",
                 users?.Count ?? 0,
                 field,
-                value,
                 config.ShortName
             );
 
@@ -192,6 +191,64 @@ namespace MoodleInstanceBridge.Services.Moodle
             _logger.LogInformation(
                 "Updated email for user {UserId} in instance {Instance}",
                 userId,
+                config.ShortName
+            );
+        }
+
+        public async Task EnrolUserInCourseAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            int courseId,
+            int roleId,
+            CancellationToken cancellationToken = default)
+        {
+            if (userId <= 0)
+                throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
+            if (courseId <= 0)
+                throw new ArgumentException("Course ID must be greater than zero.", nameof(courseId));
+            if (roleId <= 0)
+                throw new ArgumentException("Role ID must be greater than zero.", nameof(roleId));
+
+            var url = MoodleUrlBuilder.BuildEnrolUserInCourseUrl(config, userId, courseId, roleId);
+            await _webServiceClient.ExecuteRequestAsync(
+                config,
+                url,
+                "enrol_manual_enrol_users",
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Enrolled user {UserId} onto course {CourseId} in instance {Instance}",
+                userId,
+                courseId,
+                config.ShortName
+            );
+        }
+
+        public async Task UnEnrolUserInCourseAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            int courseId,
+            int roleId,
+            CancellationToken cancellationToken = default)
+        {
+            if (userId <= 0)
+                throw new ArgumentException("User ID must be greater than zero.", nameof(userId));
+            if (courseId <= 0)
+                throw new ArgumentException("Course ID must be greater than zero.", nameof(courseId));
+            if (roleId <= 0)
+                throw new ArgumentException("Role ID must be greater than zero.", nameof(roleId));
+
+            var url = MoodleUrlBuilder.BuildUnEnrolUserInCourseUrl(config, userId, courseId, roleId);
+            await _webServiceClient.ExecuteRequestAsync(
+                config,
+                url,
+                "enrol_manual_unenrol_users",
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Unenrolled user {UserId} from course {CourseId} in instance {Instance}",
+                userId,
+                courseId,
                 config.ShortName
             );
         }

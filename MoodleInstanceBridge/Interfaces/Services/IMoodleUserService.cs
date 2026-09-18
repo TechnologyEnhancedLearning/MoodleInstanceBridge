@@ -108,6 +108,36 @@ namespace MoodleInstanceBridge.Interfaces.Services
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Enrol a user onto a course using enrol_manual_enrol_users
+        /// </summary>
+        /// <param name="config">Moodle instance configuration</param>
+        /// <param name="userId">Moodle user ID</param>
+        /// <param name="courseId">Moodle course ID</param>
+        /// <param name="roleId">Moodle role ID to enrol the user with</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        Task EnrolUserInCourseAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            int courseId,
+            int roleId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Unenrol a user from a course using enrol_manual_unenrol_users
+        /// </summary>
+        /// <param name="config">Moodle instance configuration</param>
+        /// <param name="userId">Moodle user ID</param>
+        /// <param name="courseId">Moodle course ID</param>
+        /// <param name="roleId">Moodle role ID to enrol the user with</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        Task UnEnrolUserInCourseAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            int courseId,
+            int roleId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Get badges awarded to a user using core_badges_get_user_badges web service
         /// </summary>
         /// <param name="config">Moodle instance configuration</param>

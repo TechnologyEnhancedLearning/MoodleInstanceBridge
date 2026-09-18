@@ -9,6 +9,7 @@ using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
 using MoodleInstanceBridge.Models.Configuration;
 using MoodleInstanceBridge.Models.Courses;
+using MoodleInstanceBridge.Models.Errors;
 using MoodleInstanceBridge.Models.Moodle;
 using MoodleInstanceBridge.Models.Users;
 using MoodleInstanceBridge.Services.Orchestration;
@@ -30,8 +31,10 @@ namespace MoodleInstanceBridge.Services.Users
         private readonly TargetedInstanceOrchestrator _certificatesOrchestrator;
         private readonly TargetedInstanceOrchestrator _updateEmailOrchestrator;
         private readonly TargetedInstanceOrchestrator _badgesOrchestrator;
+        private readonly IInstanceConfigurationService _instanceConfigurationService;
         private readonly IMoodleIntegrationService _moodleIntegrationService;
         private readonly ILogger<UserService> _logger;
+        private readonly int _defaultEnrolmentRoleId;
 
         public UserService(
            MultiInstanceOrchestrator<List<LearningHub.Nhs.Models.Moodle.MoodleUser>> allInstancesOrchestrator,
@@ -42,6 +45,8 @@ namespace MoodleInstanceBridge.Services.Users
            TargetedInstanceOrchestrator certificatesOrchestrator,
            TargetedInstanceOrchestrator updateEmailOrchestrator,
            TargetedInstanceOrchestrator badgesOrchestrator,
+           IInstanceConfigurationService instanceConfigurationService,
+           IConfiguration configuration,
            IMoodleIntegrationService moodleIntegrationService,
            ILogger<UserService> logger)
         {
@@ -53,8 +58,12 @@ namespace MoodleInstanceBridge.Services.Users
             _certificatesOrchestrator = certificatesOrchestrator;
             _updateEmailOrchestrator = updateEmailOrchestrator;
             _badgesOrchestrator = badgesOrchestrator;
+            _instanceConfigurationService = instanceConfigurationService;
             _moodleIntegrationService = moodleIntegrationService;
             _logger = logger;
+            _defaultEnrolmentRoleId = configuration.GetValue<int?>("MoodleEnrolment:RoleId") is int configuredRoleId && configuredRoleId > 0
+                ? configuredRoleId
+                : 5;
         }
 
         /// <inheritdoc />
@@ -173,7 +182,7 @@ namespace MoodleInstanceBridge.Services.Users
                 operationName: "Recent courses lookup",
                 instanceUserIds: userIdsRequest.UserIds,
                 instanceOperation: (config, userId, ct) =>
-                    _moodleIntegrationService.GetRecentCoursesAsync(config, userId,months,statusfilter,search, ct),
+                    _moodleIntegrationService.GetRecentCoursesAsync(config, userId, months, statusfilter, search, ct),
                 cancellationToken: cancellationToken
             );
 
@@ -289,6 +298,126 @@ namespace MoodleInstanceBridge.Services.Users
             );
 
             return response;
+        }
+
+        /// <inheritdoc />
+        public async Task<EnrolmentResponse> EnrolUserOnCourseAsync(
+            EnrolmentRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            var config = await _instanceConfigurationService.GetConfigurationAsync(request.InstanceId, cancellationToken);
+            if (config == null)
+                throw new NotFoundException($"Moodle instance '{request.InstanceId}'");
+
+            var users = await _moodleIntegrationService.GetUsersByFieldAsync(
+                config,
+                "email",
+                request.UserEmail,
+                cancellationToken);
+
+            var user = users.FirstOrDefault();
+            if (user == null)
+                throw new NotFoundException($"Moodle user '{request.UserEmail}'");
+
+            var courseResponse = await _moodleIntegrationService.GetCoursesByFieldAsync(
+                config,
+                "id",
+                request.CourseId.ToString(),
+                cancellationToken);
+
+            if (courseResponse.Courses == null || !courseResponse.Courses.Any(course => course.Id == request.CourseId))
+                throw new NotFoundException($"Moodle course '{request.CourseId}'");
+
+            var existingCourses = await _moodleIntegrationService.GetUserCoursesAsync(
+                config,
+                user.Id,
+                cancellationToken);
+
+            if (existingCourses.Any(course => course.Id == request.CourseId))
+            {
+                return new EnrolmentResponse
+                {
+                    Instance = config.ShortName,
+                    Status = "already_enrolled"
+                };
+            }
+
+            await _moodleIntegrationService.EnrolUserInCourseAsync(
+                config,
+                user.Id,
+                request.CourseId,
+                _defaultEnrolmentRoleId,
+                cancellationToken);
+
+            return new EnrolmentResponse
+            {
+                Instance = config.ShortName,
+                Status = "enrolled"
+            };
+        }
+
+        /// <inheritdoc />
+        public async Task<EnrolmentResponse> UnEnrolUserOnCourseAsync(
+            EnrolmentRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            var config = await _instanceConfigurationService.GetConfigurationAsync(request.InstanceId, cancellationToken);
+            if (config == null)
+                throw new NotFoundException($"Moodle instance '{request.InstanceId}'");
+
+            var users = await _moodleIntegrationService.GetUsersByFieldAsync(
+                config,
+                "email",
+                request.UserEmail,
+                cancellationToken);
+
+            var user = users.FirstOrDefault();
+            if (user == null)
+                throw new NotFoundException($"Moodle user '{request.UserEmail}'");
+
+            var courseResponse = await _moodleIntegrationService.GetCoursesByFieldAsync(
+                config,
+                "id",
+                request.CourseId.ToString(),
+                cancellationToken);
+
+            if (courseResponse.Courses == null || !courseResponse.Courses.Any(course => course.Id == request.CourseId))
+                throw new NotFoundException($"Moodle course '{request.CourseId}'");
+
+            var existingCourses = await _moodleIntegrationService.GetUserCoursesAsync(
+                config,
+                user.Id,
+                cancellationToken);
+
+            if (!existingCourses.Any(course => course.Id == request.CourseId))
+            {
+                return new EnrolmentResponse
+                {
+                    Instance = config.ShortName,
+                    Status = "not_enrolled"
+                };
+            }
+            else
+            {
+                await _moodleIntegrationService.UnEnrolUserInCourseAsync(
+                config,
+                user.Id,
+                request.CourseId,
+                _defaultEnrolmentRoleId,
+                cancellationToken);
+            }           
+
+            return new EnrolmentResponse
+            {
+                Instance = config.ShortName,
+                Status = "unenrolled"
+            };
         }
 
         /// <summary>

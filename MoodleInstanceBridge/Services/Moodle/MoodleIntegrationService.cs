@@ -110,6 +110,26 @@ namespace MoodleInstanceBridge.Services.Moodle
             return _userService.UpdateUserEmailAsync(config, userId, newEmail, cancellationToken);
         }
 
+        public Task EnrolUserInCourseAsync(
+            MoodleInstanceConfig config,
+            int userId,
+            int courseId,
+            int roleId,
+            CancellationToken cancellationToken = default)
+        {
+            return _userService.EnrolUserInCourseAsync(config, userId, courseId, roleId, cancellationToken);
+        }
+
+        public Task UnEnrolUserInCourseAsync(
+           MoodleInstanceConfig config,
+           int userId,
+           int courseId,
+           int roleId,
+           CancellationToken cancellationToken = default)
+        {
+            return _userService.UnEnrolUserInCourseAsync(config, userId, courseId, roleId, cancellationToken);
+        }
+
         public Task<List<MoodleUserBadgeResponseModel>> GetUserBadgesAsync(
             MoodleInstanceConfig config,
             int userId,

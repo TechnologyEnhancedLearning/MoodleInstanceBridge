@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MoodleInstanceBridge.Attributes;
+using MoodleInstanceBridge.Authentication;
 using MoodleInstanceBridge.Contracts.Aggregate;
 using MoodleInstanceBridge.Contracts.Payloads;
 using MoodleInstanceBridge.Contracts.Requests;
@@ -381,6 +383,102 @@ namespace MoodleInstanceBridge.Controllers
             );
 
             var response = await _userService.UpdateUserEmailAsync(request, cancellationToken);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Enrol a Learning Hub user onto a Moodle course in a specific instance
+        /// </summary>
+        /// <param name="request">Request containing the instance, course, and Learning Hub user email</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Single-instance enrolment outcome</returns>
+        [HttpPost("enrolments")]
+        [Authorize(AuthenticationSchemes = ApiKeyAuthenticationOptions.DefaultScheme)]
+        [ProducesResponseType(typeof(EnrolmentResponse), StatusCodes.Status200OK)]
+        [AuthenticationErrorResponse]
+        [ValidationErrorResponse]
+        [StandardErrorResponses]
+        [NotFoundErrorResponse]
+        [UpstreamErrorResponse]
+        public async Task<ActionResult<EnrolmentResponse>> CreateEnrolment(
+            [FromBody] EnrolmentRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request == null)
+            {
+                throw new ValidationException("request", "Request body is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.InstanceId))
+            {
+                throw new ValidationException("instanceId", "Instance ID is required.");
+            }
+
+            if (request.CourseId <= 0)
+            {
+                throw new ValidationException("courseId", "Course ID must be greater than zero.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.UserEmail))
+            {
+                throw new ValidationException("userEmail", "User email address is required.");
+            }
+
+            ValidateEmailFormat(request.UserEmail, "userEmail");
+
+            _logger.LogInformation(
+                "Received request to create a Moodle course enrolment"
+            );
+
+            var response = await _userService.EnrolUserOnCourseAsync(request, cancellationToken);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Unenrol a Learning Hub user from a Moodle course in a specific instance
+        /// </summary>
+        /// <param name="request">Request containing the instance, course, and Learning Hub user email</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Single-instance enrolment outcome</returns>
+        [HttpPost("unenrol")]
+        [Authorize(AuthenticationSchemes = ApiKeyAuthenticationOptions.DefaultScheme)]
+        [ProducesResponseType(typeof(EnrolmentResponse), StatusCodes.Status200OK)]
+        [AuthenticationErrorResponse]
+        [ValidationErrorResponse]
+        [StandardErrorResponses]
+        [NotFoundErrorResponse]
+        [UpstreamErrorResponse]
+        public async Task<ActionResult<EnrolmentResponse>> UnEnrolUserOnCourseAsync(
+            [FromBody] EnrolmentRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request == null)
+            {
+                throw new ValidationException("request", "Request body is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.InstanceId))
+            {
+                throw new ValidationException("instanceId", "Instance ID is required.");
+            }
+
+            if (request.CourseId <= 0)
+            {
+                throw new ValidationException("courseId", "Course ID must be greater than zero.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.UserEmail))
+            {
+                throw new ValidationException("userEmail", "User email address is required.");
+            }
+
+            ValidateEmailFormat(request.UserEmail, "userEmail");
+
+            _logger.LogInformation(
+                "Received request to remove a Moodle course enrolment"
+            );
+
+            var response = await _userService.UnEnrolUserOnCourseAsync(request, cancellationToken);
             return Ok(response);
         }
 
