@@ -1,5 +1,6 @@
 using LearningHub.Nhs.Models.Moodle;
 using LearningHub.Nhs.Models.Moodle.API;
+using System.Linq;
 using MoodleInstanceBridge.Helpers;
 using MoodleInstanceBridge.Interfaces;
 using MoodleInstanceBridge.Interfaces.Services;
@@ -57,12 +58,44 @@ namespace MoodleInstanceBridge.Services.Moodle
                 "core_course_get_courses_by_field",
                 cancellationToken);
 
+            if (response == null || response.Courses == null)
+                return new MoodleCoursesResponseModel();
+
+            // Filter to only visible courses (Moodle 'visible' property: 1 = visible, 0 = hidden)
+            response.Courses = response.Courses
+                .Where(c =>
+                {
+                    try
+                    {
+                        // Most Moodle models use an int for visible (1 = visible). Use reflection as a safe fallback.
+                        var prop = c.GetType().GetProperty("Visible");
+                        if (prop != null && prop.PropertyType == typeof(int))
+                        {
+                            return (int)prop.GetValue(c)! == 1;
+                        }
+
+                        // If there's a boolean property named Visible, treat true as visible
+                        if (prop != null && prop.PropertyType == typeof(bool))
+                        {
+                            return (bool)prop.GetValue(c)!;
+                        }
+
+                        // Fallback: try property named "visible" (case-sensitive check handled above) or assume visible
+                        return true;
+                    }
+                    catch
+                    {
+                        return true;
+                    }
+                })
+                .ToList();
+
             foreach (var item in response.Courses)
             {
-                item.CourseUrl = CourseHelper.GetCourseUrl(config.BaseUrl,item.Id);
+                item.CourseUrl = CourseHelper.GetCourseUrl(config.BaseUrl, item.Id);
             }
 
-            return response ?? new MoodleCoursesResponseModel();
+            return response;
         }
 
         public async Task<List<MoodleSubCategoryResponseModel>> GetSubCategoriesAsync(
@@ -100,6 +133,6 @@ namespace MoodleInstanceBridge.Services.Moodle
                 throw new ArgumentException("Field cannot be null or whitespace.", nameof(field));
             if (string.IsNullOrWhiteSpace(value))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(value));
-        }        
+        }
     }
 }
